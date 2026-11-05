@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings — YouTube Feeds + No Shorts</title>
+  <link rel="stylesheet" href="options.css" />
+  <link rel="icon" href="icons/icon48.png" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Settings</h1>
+        <p class="sub">Manage curated feeds and Shorts blocking. Starter channels are editable.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a class="btn" href="feeds.html">← Back to Feeds</a>
+        <button type="button" class="btn btn-danger" id="resetBtn">Reset starters</button>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2>Shorts blocker</h2>
+      <p class="hint">When on, Shorts shelves, tiles, and the Shorts tab are hidden on youtube.com. Visiting /shorts/VIDEO redirects to the normal watch page.</p>
+      <div class="row">
+        <label class="toggle-row">
+          <button type="button" class="switch on" id="shortsToggle" aria-pressed="true"></button>
+          <span>Hide Shorts on YouTube</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Feed channels</h2>
+      <p class="hint">Add a channel URL, @handle, or channel ID (UC…). IDs are resolved once and cached. RSS returns ~15 latest videos per channel; Shorts links are dropped.</p>
+
+      <div class="feed-tabs" id="feedTabs"></div>
+
+      <form class="add-form" id="addForm">
+        <input type="text" id="channelInput" placeholder="https://www.youtube.com/@handle  or  @handle  or  UC…" required autocomplete="off" />
+        <input type="text" id="nameInput" placeholder="Display name (optional)" autocomplete="off" />
+        <button type="submit" class="btn btn-primary" id="addBtn">Add</button>
+      </form>
+      <div class="msg" id="formMsg"></div>
+
+      <ul class="channel-list" id="channelList"></ul>
+    </section>
+
+    <section class="card" id="playlists">
+      <h2>Playlists</h2>
+      <p class="hint">Playlists are stored locally in this browser. "Sync from YouTube" reads youtube.com/feed/playlists using your existing YouTube login (best effort). "Re-read file" picks up <code>playlists.local.json</code> placed in the extension folder.</p>
+      <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" id="plSyncBtn">Sync from YouTube</button>
+        <button type="button" class="btn" id="plRefreshBtn">Refresh playlists (re-read file)</button>
+        <label class="btn">Import JSON<input type="file" id="plImport" accept=".json,application/json" hidden /></label>
+      </div>
+      <form class="add-form" id="plAddForm">
+        <input type="text" id="plInput" placeholder="Playlist URL (…?list=PL…) or ID" required autocomplete="off" />
+        <input type="text" id="plName" placeholder="Name (optional)" autocomplete="off" />
+        <button type="submit" class="btn btn-primary">Add</button>
+      </form>
+      <div class="msg" id="plMsg"></div>
+      <ul class="channel-list" id="plList"></ul>
+    </section>
+
+    <p class="footer-note">
+      YouTube Feeds + No Shorts · Manifest V3 · No analytics · No Google API key.<br />
+      Data is stored in <code>chrome.storage.sync</code> (falls back to local). Public RSS:
+      <code>youtube.com/feeds/videos.xml?channel_id=UC…</code>
+    </p>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

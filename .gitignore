@@ -1,0 +1,9 @@
+.DS_Store
+Thumbs.db
+*.zip
+
+# Local user data (never commit)
+playlists.local.json
+youtube-playlists.json
+youtube-subs.json
+personal-feeds.local.json

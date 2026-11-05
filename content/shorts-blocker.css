@@ -1,0 +1,74 @@
+/* YouTube Feeds + No Shorts — hide Shorts UI when enabled */
+
+html.yfn-hide-shorts ytd-rich-shelf-renderer[is-shorts],
+html.yfn-hide-shorts ytd-reel-shelf-renderer,
+html.yfn-hide-shorts ytd-rich-shelf-renderer:has(a[href*="/shorts/"]),
+html.yfn-hide-shorts ytd-shelf-renderer:has(a[href*="/shorts/"]),
+html.yfn-hide-shorts grid-shelf-view-model:has(a[href*="/shorts/"]),
+html.yfn-hide-shorts ytd-rich-section-renderer:has(a[href*="/shorts/"]),
+html.yfn-hide-shorts ytd-item-section-renderer:has(> #contents > ytd-reel-shelf-renderer) {
+  display: none !important;
+}
+
+/* Shorts tab / chip in guide + chips row */
+html.yfn-hide-shorts a[title="Shorts"],
+html.yfn-hide-shorts a[href="/shorts"],
+html.yfn-hide-shorts a[href^="/shorts?"],
+html.yfn-hide-shorts yt-tab-shape:has(a[href*="/shorts"]),
+html.yfn-hide-shorts tp-yt-paper-tab:has(a[href*="/shorts"]),
+html.yfn-hide-shorts ytd-guide-entry-renderer:has(a[title="Shorts"]),
+html.yfn-hide-shorts ytd-guide-entry-renderer:has(a[href="/shorts"]),
+html.yfn-hide-shorts ytd-mini-guide-entry-renderer:has(a[title="Shorts"]),
+html.yfn-hide-shorts ytd-mini-guide-entry-renderer:has(a[href="/shorts"]),
+html.yfn-hide-shorts yt-chip-cloud-chip-renderer:has(a[href*="/shorts"]),
+html.yfn-hide-shorts yt-chip-cloud-chip-renderer[chip-style]:has(#text[title="Shorts"]) {
+  display: none !important;
+}
+
+/* Individual Shorts video tiles */
+html.yfn-hide-shorts ytd-rich-item-renderer:has(a[href*="/shorts/"]),
+html.yfn-hide-shorts ytd-grid-video-renderer:has(a[href*="/shorts/"]),
+html.yfn-hide-shorts ytd-video-renderer:has(a[href*="/shorts/"]),
+html.yfn-hide-shorts ytd-compact-video-renderer:has(a[href*="/shorts/"]),
+html.yfn-hide-shorts ytd-playlist-video-renderer:has(a[href*="/shorts/"]),
+html.yfn-hide-shorts ytm-shorts-lockup-view-model,
+html.yfn-hide-shorts ytd-reel-item-renderer,
+html.yfn-hide-shorts ytd-shorts-lockup-view-model,
+html.yfn-hide-shorts shorts-lockup-view-model,
+html.yfn-hide-shorts .ytd-reel-shelf-renderer,
+html.yfn-hide-shorts a.shortsLockupViewModelHostEndpoint,
+html.yfn-hide-shorts [href*="/shorts/"] ytd-thumbnail,
+html.yfn-hide-shorts ytd-thumbnail[href*="/shorts/"] {
+  /* Prefer hiding the whole renderer when possible — JS adds .yfn-is-short */
+}
+
+html.yfn-hide-shorts .yfn-is-short {
+  display: none !important;
+}
+
+/* Vertical Shorts player page — block when we couldn't redirect */
+html.yfn-hide-shorts ytd-shorts,
+html.yfn-hide-shorts shorts-container,
+html.yfn-hide-shorts #shorts-container,
+html.yfn-hide-shorts ytd-reel-video-renderer {
+  display: none !important;
+}
+
+html.yfn-hide-shorts body.yfn-shorts-blocked::before {
+  content: "Shorts blocked by YouTube Feeds + No Shorts. Opening the regular watch page when possible…";
+  display: block;
+  position: fixed;
+  z-index: 10000;
+  left: 50%;
+  top: 20%;
+  transform: translateX(-50%);
+  background: #212121;
+  color: #fff;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-family: "Roboto", Arial, sans-serif;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  max-width: 420px;
+  text-align: center;
+}

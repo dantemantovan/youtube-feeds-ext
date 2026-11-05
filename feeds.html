@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YouTube Feeds + No Shorts</title>
+  <link rel="stylesheet" href="feeds.css" />
+  <link rel="icon" href="icons/icon48.png" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-mark">▶</div>
+      <span>YouTube Feeds</span>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Feeds"></nav>
+    <div class="header-actions">
+      <label class="toggle-row" title="Hide Shorts on youtube.com">
+        <button type="button" class="switch on" id="shortsToggle" aria-pressed="true" aria-label="Hide Shorts on YouTube"></button>
+        <span>Hide Shorts</span>
+      </label>
+      <button type="button" class="btn" id="refreshBtn" title="Refresh feed">↻ Refresh</button>
+      <a class="btn" href="options.html">⚙ Settings</a>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="toolbar">
+      <div>
+        <div class="feed-desc" id="feedDesc"></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <select id="sortSelect" class="btn" aria-label="Sort videos">
+          <option value="newest">Newest to oldest</option>
+          <option value="oldest">Oldest to newest</option>
+          <option value="popular">Most popular</option>
+          <option value="unpopular">Least popular</option>
+        </select>
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+    <div id="content" class="grid" aria-live="polite"></div>
+    <div id="errors" hidden></div>
+  </main>
+
+  <script type="module" src="feeds.js"></script>
+</body>
+</html>
