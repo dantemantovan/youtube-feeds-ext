@@ -207,3 +207,32 @@ input[type="text"]:focus { border-color: var(--accent-soft); }
   font-size: 12px;
   line-height: 1.5;
 }
+
+.channel-item.disabled {
+  opacity: 0.55;
+}
+.channel-item .item-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.channel-item .enable-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.channel-item .switch {
+  width: 36px;
+  height: 20px;
+}
+.channel-item .switch::after {
+  width: 14px;
+  height: 14px;
+  top: 3px;
+  left: 3px;
+}
+.channel-item .switch.on::after { transform: translateX(16px); }

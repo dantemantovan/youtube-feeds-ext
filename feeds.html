@@ -20,7 +20,7 @@
         <span>Hide Shorts</span>
       </label>
       <button type="button" class="btn" id="refreshBtn" title="Refresh feed">↻ Refresh</button>
-      <a class="btn" href="options.html">⚙ Settings</a>
+      <a class="btn" href="options.html" target="_blank" rel="noopener">⚙ Settings</a>
     </div>
   </header>
 
@@ -31,6 +31,7 @@
       </div>
       <div style="display:flex;gap:12px;align-items:center;">
         <select id="sortSelect" class="btn" aria-label="Sort videos">
+          <option value="recommended">Recommended (Home order)</option>
           <option value="newest">Newest to oldest</option>
           <option value="oldest">Oldest to newest</option>
           <option value="popular">Most popular</option>

@@ -33,7 +33,7 @@
 
     <section class="card">
       <h2>Feed channels</h2>
-      <p class="hint">Add a channel URL, @handle, or channel ID (UC…). IDs are resolved once and cached. RSS returns ~15 latest videos per channel; Shorts links are dropped.</p>
+      <p class="hint">Add a channel URL, @handle, or channel ID (UC…). IDs are resolved once and cached. Use the On/Off toggle to exclude a channel from feeds without deleting it. RSS returns ~15 latest videos per channel; Shorts links are dropped.</p>
 
       <div class="feed-tabs" id="feedTabs"></div>
 
@@ -49,7 +49,7 @@
 
     <section class="card" id="playlists">
       <h2>Playlists</h2>
-      <p class="hint">Playlists are stored locally in this browser. "Sync from YouTube" reads youtube.com/feed/playlists using your existing YouTube login (best effort). "Re-read file" picks up <code>playlists.local.json</code> placed in the extension folder.</p>
+      <p class="hint">Playlists are stored locally in this browser. Toggle On/Off to hide a playlist from the Feeds tab without deleting it. "Sync from YouTube" reads youtube.com/feed/playlists using your existing YouTube login (best effort). "Re-read file" picks up <code>playlists.local.json</code> placed in the extension folder.</p>
       <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" class="btn btn-primary" id="plSyncBtn">Sync from YouTube</button>
         <button type="button" class="btn" id="plRefreshBtn">Refresh playlists (re-read file)</button>

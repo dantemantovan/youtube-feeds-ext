@@ -57,6 +57,28 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+function makeEnableToggle(enabled, onChange) {
+  const wrap = document.createElement("label");
+  wrap.className = "enable-label";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "switch" + (enabled ? " on" : "");
+  btn.setAttribute("aria-pressed", enabled ? "true" : "false");
+  btn.setAttribute("aria-label", enabled ? "Enabled" : "Disabled");
+  const text = document.createElement("span");
+  text.textContent = enabled ? "On" : "Off";
+  btn.addEventListener("click", async () => {
+    const next = !btn.classList.contains("on");
+    btn.classList.toggle("on", next);
+    btn.setAttribute("aria-pressed", next ? "true" : "false");
+    text.textContent = next ? "On" : "Off";
+    await onChange(next);
+  });
+  wrap.appendChild(btn);
+  wrap.appendChild(text);
+  return wrap;
+}
+
 async function loadChannels() {
   const res = await send({ type: "GET_FEED_CHANNELS", feedId: state.feedId });
   const channels = res.channels || [];
@@ -66,18 +88,23 @@ async function loadChannels() {
     return;
   }
   channels.forEach((ch, index) => {
+    const enabled = ch.enabled !== false;
     const li = document.createElement("li");
-    li.className = "channel-item";
+    li.className = "channel-item" + (enabled ? "" : " disabled");
     li.innerHTML = `
       <div class="meta">
         <span class="name">${escapeHtml(ch.name || ch.handle || "Channel")}</span>
         <span class="id">${escapeHtml(ch.handle || ch.url || "")}${ch.channelId ? " · " + escapeHtml(ch.channelId) : ""}</span>
-      </div>
-      <button type="button" class="btn btn-danger" data-index="${index}">Remove</button>`;
-    li.querySelector("button").addEventListener("click", async () => {
-      await send({ type: "REMOVE_CHANNEL", feedId: state.feedId, index });
-      loadChannels();
-    });
+      </div>`;
+    const actions = document.createElement("div");
+    actions.className = "item-actions";
+    actions.appendChild(
+      makeEnableToggle(enabled, async (next) => {
+        await send({ type: "SET_CHANNEL_ENABLED", feedId: state.feedId, index, enabled: next });
+        loadChannels();
+      })
+    );
+    li.appendChild(actions);
     channelList.appendChild(li);
   });
 }
@@ -119,7 +146,7 @@ async function initShortsToggle() {
 }
 
 resetBtn.addEventListener("click", async () => {
-  if (!confirm("Reset all three feeds to the built-in starter channels? Your custom channels will be removed.")) {
+  if (!confirm("Reset all feeds to the built-in starter channels? Your custom channels will be removed.")) {
     return;
   }
   const res = await send({ type: "RESET_STARTERS" });
@@ -138,7 +165,10 @@ loadChannels();
 // ---- Playlists ----
 const plList = document.getElementById("plList");
 const plMsg = document.getElementById("plMsg");
-function setPlMsg(t, kind = "") { plMsg.textContent = t; plMsg.className = "msg" + (kind ? " " + kind : ""); }
+function setPlMsg(t, kind = "") {
+  plMsg.textContent = t;
+  plMsg.className = "msg" + (kind ? " " + kind : "");
+}
 function renderPlaylists(list) {
   plList.innerHTML = "";
   if (!list?.length) {
@@ -146,13 +176,19 @@ function renderPlaylists(list) {
     return;
   }
   for (const p of list) {
+    const enabled = p.enabled !== false;
     const li = document.createElement("li");
-    li.className = "channel-item";
-    li.innerHTML = `<div class="meta"><span class="name">${escapeHtml(p.name)}</span><span class="id">${escapeHtml(p.playlistId)}</span></div>
-      <button type="button" class="btn btn-danger">Remove</button>`;
-    li.querySelector("button").addEventListener("click", async () => {
-      renderPlaylists((await send({ type: "REMOVE_PLAYLIST", playlistId: p.playlistId })).playlists);
-    });
+    li.className = "channel-item" + (enabled ? "" : " disabled");
+    li.innerHTML = `<div class="meta"><span class="name">${escapeHtml(p.name)}</span><span class="id">${escapeHtml(p.playlistId)}${p.videoCount != null ? " · " + p.videoCount + " videos" : ""}</span></div>`;
+    const actions = document.createElement("div");
+    actions.className = "item-actions";
+    actions.appendChild(
+      makeEnableToggle(enabled, async (next) => {
+        const res = await send({ type: "SET_PLAYLIST_ENABLED", playlistId: p.playlistId, enabled: next });
+        renderPlaylists(res.playlists || list);
+      })
+    );
+    li.appendChild(actions);
     plList.appendChild(li);
   }
 }
@@ -164,21 +200,32 @@ async function plAction(msg, label) {
   const errs = res.errors?.length ? ` (${res.errors.join("; ")})` : "";
   setPlMsg(`${res.playlists.length} playlists stored${errs}`, errs ? "error" : "ok");
 }
-document.getElementById("plSyncBtn").addEventListener("click", () => plAction({ type: "REFRESH_PLAYLISTS", scrape: true }, "Syncing from YouTube"));
-document.getElementById("plRefreshBtn").addEventListener("click", () => plAction({ type: "REFRESH_PLAYLISTS" }, "Refreshing"));
+document.getElementById("plSyncBtn").addEventListener("click", () =>
+  plAction({ type: "REFRESH_PLAYLISTS", scrape: true }, "Syncing from YouTube")
+);
+document.getElementById("plRefreshBtn").addEventListener("click", () =>
+  plAction({ type: "REFRESH_PLAYLISTS" }, "Refreshing")
+);
 document.getElementById("plImport").addEventListener("change", async (e) => {
   const f = e.target.files[0];
   if (!f) return;
   try {
     const data = JSON.parse(await f.text());
-    await plAction({ type: "IMPORT_PLAYLISTS", playlists: Array.isArray(data) ? data : data.playlists || [] }, "Importing");
-  } catch (err) { setPlMsg("Invalid JSON: " + err.message, "error"); }
+    await plAction(
+      { type: "IMPORT_PLAYLISTS", playlists: Array.isArray(data) ? data : data.playlists || [] },
+      "Importing"
+    );
+  } catch (err) {
+    setPlMsg("Invalid JSON: " + err.message, "error");
+  }
   e.target.value = "";
 });
 document.getElementById("plAddForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const input = document.getElementById("plInput"), name = document.getElementById("plName");
+  const input = document.getElementById("plInput"),
+    name = document.getElementById("plName");
   await plAction({ type: "ADD_PLAYLIST", input: input.value, name: name.value.trim() }, "Adding");
-  input.value = ""; name.value = "";
+  input.value = "";
+  name.value = "";
 });
 send({ type: "GET_PLAYLISTS" }).then((r) => renderPlaylists(r.playlists));

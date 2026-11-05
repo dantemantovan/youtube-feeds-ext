@@ -28,6 +28,7 @@ function normalize(p) {
     thumbnail: p.thumbnail || p.thumb || "",
     videoCount: p.videoCount != null && p.videoCount !== "" ? Number(p.videoCount) || null : null,
     source: p.source || "manual",
+    enabled: p.enabled !== false,
   };
 }
 
@@ -38,10 +39,35 @@ export function mergePlaylists(...lists) {
       const p = normalize(raw);
       if (!p) continue;
       const prev = map.get(p.playlistId);
-      map.set(p.playlistId, prev ? { ...prev, ...Object.fromEntries(Object.entries(p).filter(([, v]) => v)) } : p);
+      if (!prev) {
+        map.set(p.playlistId, p);
+        continue;
+      }
+      const merged = { ...prev };
+      for (const [k, v] of Object.entries(p)) {
+        if (v == null || v === "") continue;
+        if (k === "enabled") continue; // keep stored toggle; scrapes/files omit it
+        merged[k] = v;
+      }
+      if (Object.prototype.hasOwnProperty.call(raw, "enabled")) {
+        merged.enabled = raw.enabled !== false;
+      }
+      map.set(p.playlistId, merged);
     }
   }
   return [...map.values()];
+}
+
+export async function setPlaylistEnabled(playlistId, enabled) {
+  const list = await getPlaylists();
+  const next = list.map((p) =>
+    p.playlistId === playlistId ? { ...p, enabled: !!enabled } : p
+  );
+  return setPlaylists(next);
+}
+
+export function isPlaylistEnabled(p) {
+  return !p || p.enabled !== false;
 }
 
 export async function getPlaylists() {

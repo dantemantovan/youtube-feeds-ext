@@ -178,8 +178,20 @@ export async function addChannel(feedId, channel) {
       (channel.url && c.url === channel.url)
   );
   if (exists) return channels;
-  channels.push(channel);
+  channels.push({ ...channel, enabled: channel.enabled !== false });
   return setFeedChannels(feedId, channels);
+}
+
+/** Toggle or set enabled flag; missing enabled means true (legacy). */
+export async function setChannelEnabled(feedId, index, enabled) {
+  const channels = await getFeedChannels(feedId);
+  if (index < 0 || index >= channels.length) throw new Error("Invalid channel index");
+  channels[index] = { ...channels[index], enabled: !!enabled };
+  return setFeedChannels(feedId, channels);
+}
+
+export function isChannelEnabled(ch) {
+  return !ch || ch.enabled !== false;
 }
 
 export async function removeChannel(feedId, index) {

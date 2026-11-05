@@ -13,6 +13,8 @@ import {
   setFeedChannels,
   addChannel,
   removeChannel,
+  setChannelEnabled,
+  isChannelEnabled,
   resetToStarters,
 } from "./shared/storage.js";
 import { resolveChannelId, buildChannelFromInput, parseChannelInput } from "./shared/resolve.js";
@@ -21,7 +23,9 @@ import { FEED_IDS, FEED_META } from "./shared/defaults.js";
 import {
   getPlaylists, setPlaylists, addPlaylists, removePlaylist,
   refreshPlaylists, getPlaylistVideos, parsePlaylistId,
+  setPlaylistEnabled, isPlaylistEnabled,
 } from "./shared/playlists.js";
+import { fetchAlgorithmFeed } from "./shared/algorithm.js";
 
 chrome.runtime.onInstalled.addListener(() => {
   ensureInitialized().catch((e) => console.warn("init failed", e));
@@ -119,6 +123,10 @@ async function handleMessage(msg) {
       const channels = await removeChannel(msg.feedId, msg.index);
       return { ok: true, channels };
     }
+    case "SET_CHANNEL_ENABLED": {
+      const channels = await setChannelEnabled(msg.feedId, msg.index, msg.enabled !== false);
+      return { ok: true, channels };
+    }
     case "RESET_STARTERS": {
       const data = await resetToStarters();
       return { ok: true, ...data };
@@ -160,9 +168,16 @@ async function handleMessage(msg) {
     case "REMOVE_PLAYLIST": {
       return { ok: true, playlists: await removePlaylist(msg.playlistId) };
     }
+    case "SET_PLAYLIST_ENABLED": {
+      const playlists = await setPlaylistEnabled(msg.playlistId, msg.enabled !== false);
+      return { ok: true, playlists };
+    }
     case "FETCH_PLAYLIST": {
       const { title, videos } = await getPlaylistVideos(msg.playlistId);
       return { ok: true, title, videos };
+    }
+    case "FETCH_ALGORITHM": {
+      return fetchAlgorithmFeed({ force: !!msg.force });
     }
     case "PING":
       return { ok: true, pong: true };
@@ -172,9 +187,13 @@ async function handleMessage(msg) {
 }
 
 async function fetchFeed(feedId) {
-  const channels = await getFeedChannels(feedId);
-  if (!channels.length) {
+  const allChannels = await getFeedChannels(feedId);
+  const channels = allChannels.filter(isChannelEnabled);
+  if (!allChannels.length) {
     return { ok: true, videos: [], errors: [], empty: true };
+  }
+  if (!channels.length) {
+    return { ok: true, videos: [], errors: [], empty: false, allDisabled: true };
   }
 
   const lists = [];
@@ -196,12 +215,9 @@ async function fetchFeed(feedId) {
     }
   }
 
-  // Persist any newly resolved IDs
+  // Persist any newly resolved IDs onto the full list (keep disabled channels)
   if (resolved.length) {
-    const byKey = new Map(
-      channels.map((c, i) => [c.handle || c.url || c.channelId || i, c])
-    );
-    const updated = channels.map((c) => {
+    const updated = allChannels.map((c) => {
       const match = resolved.find(
         (r) =>
           (c.handle && r.handle === c.handle) ||

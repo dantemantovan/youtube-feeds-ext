@@ -8,25 +8,51 @@ const errorsEl = document.getElementById("errors");
 const shortsToggle = document.getElementById("shortsToggle");
 const refreshBtn = document.getElementById("refreshBtn");
 
+const ALGORITHM_ID = "algorithm";
+const PLAYLISTS_ID = "playlists";
+const ALGORITHM_META = {
+  name: "Algorithm",
+  icon: "✨",
+  description: "Your YouTube Home recommendations, scraped into the same cards as other feeds (no API key)",
+};
+const PLAYLISTS_META = {
+  name: "Playlists",
+  icon: "📂",
+  description: "Your YouTube playlists — click one to browse its videos",
+};
+
 const state = {
   feedId: ((v) => (v === "lore" ? "longform" : v))(localStorage.getItem("yfn.activeFeed")) || "longform",
   loading: false,
-  playlist: null, // open playlist {playlistId, name} or null
+  playlist: null, // open playlist {playlistId, name, url, ...} or null
 };
-const PLAYLISTS_ID = "playlists";
 const sortEl = document.getElementById("sortSelect");
-const SORT_LABELS = { newest: "Newest to oldest", oldest: "Oldest to newest", popular: "Most popular", unpopular: "Least popular" };
+const SORT_LABELS = {
+  recommended: "Recommended (Home order)",
+  newest: "Newest to oldest",
+  oldest: "Oldest to newest",
+  popular: "Most popular",
+  unpopular: "Least popular",
+};
 let sortPrefs = {};
 let currentVideos = []; // videos currently rendered (for re-sorting)
-function sortKey() { return state.feedId === PLAYLISTS_ID ? "playlist" : state.feedId; }
-function currentSort() { return sortPrefs[sortKey()] || "newest"; }
+
+function sortKey() {
+  if (state.feedId === PLAYLISTS_ID) return "playlist";
+  return state.feedId;
+}
+function currentSort() {
+  if (sortPrefs[sortKey()]) return sortPrefs[sortKey()];
+  return state.feedId === ALGORITHM_ID ? "recommended" : "newest";
+}
 function sortVideos(list, mode) {
+  if (mode === "recommended") return list.slice();
   const out = list.map((v, i) => ({ v, i }));
   const views = (x) => x.v.views;
   out.sort((a, b) => {
     if (mode === "popular" || mode === "unpopular") {
       const va = views(a), vb = views(b);
-      if (va == null && vb == null) return a.i - b.i; // keep RSS order
+      if (va == null && vb == null) return a.i - b.i;
       if (va == null) return 1;
       if (vb == null) return -1;
       return mode === "popular" ? vb - va : va - vb;
@@ -40,6 +66,13 @@ function sortVideos(list, mode) {
 function updateSortControl() {
   const listOpen = state.feedId !== PLAYLISTS_ID || state.playlist;
   sortEl.hidden = !listOpen;
+  // Recommended only makes sense for Algorithm (Home scrape order)
+  for (const opt of sortEl.options) {
+    if (opt.value === "recommended") {
+      opt.hidden = state.feedId !== ALGORITHM_ID;
+      opt.disabled = state.feedId !== ALGORITHM_ID;
+    }
+  }
   const hasViews = currentVideos.some((v) => v.views != null);
   for (const opt of sortEl.options) {
     if (opt.value === "popular" || opt.value === "unpopular") {
@@ -47,13 +80,21 @@ function updateSortControl() {
       opt.textContent = SORT_LABELS[opt.value] + (hasViews ? "" : " (loading views…)");
     }
   }
-  sortEl.value = currentSort();
+  const mode = currentSort();
+  if (mode === "recommended" && state.feedId !== ALGORITHM_ID) {
+    sortEl.value = "newest";
+  } else {
+    sortEl.value = mode;
+  }
 }
 function applySort() {
   const mode = currentSort();
-  if ((mode === "popular" || mode === "unpopular") && !currentVideos.some((v) => v.views != null)) return; // wait for counts
+  if ((mode === "popular" || mode === "unpopular") && !currentVideos.some((v) => v.views != null)) return;
   const byId = new Map([...contentEl.querySelectorAll("a.card[data-vid]")].map((el) => [el.dataset.vid, el]));
-  for (const v of sortVideos(currentVideos, mode)) { const el = byId.get(v.id); if (el) contentEl.appendChild(el); }
+  for (const v of sortVideos(currentVideos, mode)) {
+    const el = byId.get(v.id);
+    if (el) contentEl.appendChild(el);
+  }
 }
 sortEl.addEventListener("change", async () => {
   sortPrefs[sortKey()] = sortEl.value;
@@ -64,7 +105,6 @@ function formatViews(n) {
   if (n == null) return "";
   return new Intl.NumberFormat("en", { notation: "compact" }).format(n) + " views";
 }
-const PLAYLISTS_META = { name: "Playlists", icon: "📂", description: "Your YouTube playlists — click one to browse its videos" };
 
 function send(msg) {
   return new Promise((resolve) => {
@@ -99,10 +139,17 @@ function relativeTime(isoOrMs) {
   return rtf.format(-year, "year");
 }
 
+function tabMeta(id) {
+  if (id === ALGORITHM_ID) return ALGORITHM_META;
+  if (id === PLAYLISTS_ID) return PLAYLISTS_META;
+  return FEED_META[id];
+}
+
 function renderTabs() {
   tabsEl.innerHTML = "";
-  for (const id of [...FEED_IDS, PLAYLISTS_ID]) {
-    const meta = id === PLAYLISTS_ID ? PLAYLISTS_META : FEED_META[id];
+  const ids = [...FEED_IDS, ALGORITHM_ID, PLAYLISTS_ID];
+  for (const id of ids) {
+    const meta = tabMeta(id);
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "tab" + (id === state.feedId ? " active" : "");
@@ -119,7 +166,7 @@ function renderTabs() {
     });
     tabsEl.appendChild(btn);
   }
-  const meta = state.feedId === PLAYLISTS_ID ? PLAYLISTS_META : FEED_META[state.feedId];
+  const meta = tabMeta(state.feedId);
   feedDescEl.textContent = meta ? meta.description : "";
 }
 
@@ -144,6 +191,20 @@ function emptyState() {
     </div>`;
 }
 
+function algorithmEmpty(res) {
+  contentEl.className = "";
+  const signedOut = res?.code === "SIGNED_OUT" || res?.signedIn === false;
+  contentEl.innerHTML = `
+    <div class="empty">
+      <h2>${signedOut ? "Sign in to YouTube" : "No recommendations yet"}</h2>
+      <p>${signedOut
+        ? "Open youtube.com in this Chrome profile and sign in, then come back and Sync / Refresh. Algorithm scrapes your Home feed into cards here — it does not open YouTube Home."
+        : escapeHtml(res?.error || "Couldn't load Home recommendations. Try Refresh.")}</p>
+      <button type="button" class="btn btn-primary" id="algoRetry">↻ Sync / Refresh</button>
+    </div>`;
+  contentEl.querySelector("#algoRetry")?.addEventListener("click", () => loadAlgorithm(true));
+}
+
 function renderVideos(videos) {
   if (!videos.length) {
     emptyState();
@@ -154,7 +215,10 @@ function renderVideos(videos) {
   currentVideos = videos;
   updateSortControl();
   const mode = currentSort();
-  const ordered = (mode === "popular" || mode === "unpopular") && !videos.some((v) => v.views != null) ? videos : sortVideos(videos, mode);
+  const ordered =
+    (mode === "popular" || mode === "unpopular") && !videos.some((v) => v.views != null)
+      ? videos
+      : sortVideos(videos, mode);
   for (const v of ordered) {
     const a = document.createElement("a");
     a.className = "card";
@@ -172,7 +236,7 @@ function renderVideos(videos) {
         <div class="card-meta">
           <span>${escapeHtml(v.author || "")}</span>
           <span class="views" data-vid="${escapeAttr(v.id)}">${escapeHtml(formatViews(v.views))}</span>
-          <span>${escapeHtml(relativeTime(v.publishedMs || v.published))}</span>
+          <span>${escapeHtml(v.published || relativeTime(v.publishedMs || v.published))}</span>
         </div>
       </div>`;
     contentEl.appendChild(a);
@@ -190,23 +254,29 @@ function formatDuration(sec) {
 let durationToken = 0;
 async function loadDurations(ids) {
   const token = ++durationToken;
-  const CHUNK = 8; // background limits concurrency to 4 per request
+  const CHUNK = 8;
   for (let i = 0; i < ids.length; i += CHUNK) {
-    if (token !== durationToken) return; // feed switched
+    if (token !== durationToken) return;
     const res = await send({ type: "GET_DURATIONS", ids: ids.slice(i, i + CHUNK), viewIds: ids.slice(i, i + CHUNK) });
     if (token !== durationToken) return;
     const durations = (res && res.ok && res.durations) || {};
     let gotViews = false;
     for (const [id, n] of Object.entries((res && res.views) || {})) {
       const v = currentVideos.find((x) => x.id === id);
-      if (v && v.views == null) { v.views = n; gotViews = true; }
+      if (v && v.views == null) {
+        v.views = n;
+        gotViews = true;
+      }
       contentEl.querySelectorAll(`.views[data-vid="${CSS.escape(id)}"]`).forEach((el) => (el.textContent = formatViews(n)));
     }
-    if (gotViews) { updateSortControl(); if (/popular/.test(currentSort())) applySort(); }
+    if (gotViews) {
+      updateSortControl();
+      if (/popular/.test(currentSort())) applySort();
+    }
     for (const [id, sec] of Object.entries(durations)) {
       contentEl.querySelectorAll(`.duration[data-vid="${CSS.escape(id)}"]`).forEach((el) => {
         if (sec) el.textContent = formatDuration(sec);
-        else el.hidden = true; // live/unknown: hide, don't destroy (a later refresh can fill it)
+        else el.hidden = true; // live/unknown: hide, don't destroy
       });
     }
   }
@@ -241,8 +311,19 @@ async function loadFeed() {
     return;
   }
 
+  if (res.allDisabled) {
+    statusEl.textContent = "";
+    contentEl.className = "";
+    contentEl.innerHTML = `
+      <div class="empty">
+        <h2>All channels disabled</h2>
+        <p>Enable at least one channel for this feed in Settings.</p>
+        <a class="btn btn-primary" href="options.html" target="_blank" rel="noopener">Open Settings</a>
+      </div>`;
+    return;
+  }
+
   if (res.empty || (!res.videos?.length && !res.errors?.length)) {
-    // Distinguish: no channels vs channels but no videos
     const ch = await send({ type: "GET_FEED_CHANNELS", feedId: state.feedId });
     if (!ch.channels?.length) {
       statusEl.textContent = "";
@@ -266,6 +347,39 @@ async function loadFeed() {
   }
 }
 
+async function loadAlgorithm(force = false) {
+  if (state.loading) return;
+  state.loading = true;
+  statusEl.textContent = force ? "Syncing Home…" : "Loading…";
+  statusEl.classList.remove("error");
+  errorsEl.hidden = true;
+  skeleton();
+
+  const res = await send({ type: "FETCH_ALGORITHM", force });
+  state.loading = false;
+  if (state.feedId !== ALGORITHM_ID) return;
+
+  if (!res.ok) {
+    statusEl.textContent = "";
+    statusEl.classList.add("error");
+    algorithmEmpty(res);
+    return;
+  }
+
+  renderVideos(res.videos || []);
+  const count = (res.videos || []).length;
+  const age = res.scrapedAt ? relativeTime(res.scrapedAt).replace(/^in /, "") : "";
+  const cacheNote = res.cached ? (res.stale ? " · stale cache" : " · cached") : " · just scraped";
+  statusEl.textContent = count
+    ? `${count} recommendation${count === 1 ? "" : "s"}${cacheNote}${age && res.cached ? ` · ${age}` : ""}`
+    : "";
+  if (res.warning) {
+    errorsEl.hidden = false;
+    errorsEl.className = "errors";
+    errorsEl.innerHTML = `<details open><summary>Using cached results</summary><p>${escapeHtml(res.warning)}</p></details>`;
+  }
+}
+
 async function initShortsToggle() {
   const res = await send({ type: "GET_SETTINGS" });
   const on = res.settings?.hideShorts !== false;
@@ -281,6 +395,7 @@ async function initShortsToggle() {
 }
 
 function loadCurrent() {
+  if (state.feedId === ALGORITHM_ID) return loadAlgorithm(false);
   if (state.feedId !== PLAYLISTS_ID) return loadFeed();
   return state.playlist ? openPlaylist(state.playlist) : loadPlaylists();
 }
@@ -295,6 +410,11 @@ function playlistEmpty() {
     </div>`;
 }
 
+function formatVideoCount(n) {
+  if (n == null || Number.isNaN(n)) return "";
+  return `${n} video${n === 1 ? "" : "s"}`;
+}
+
 async function loadPlaylists(force = false) {
   durationToken++;
   statusEl.textContent = "Loading playlists…";
@@ -302,24 +422,63 @@ async function loadPlaylists(force = false) {
   errorsEl.hidden = true;
   const res = await send(force ? { type: "REFRESH_PLAYLISTS" } : { type: "GET_PLAYLISTS" });
   if (state.feedId !== PLAYLISTS_ID || state.playlist) return;
-  const list = res.playlists || [];
-  if (!res.ok) { statusEl.textContent = res.error || "Failed"; statusEl.classList.add("error"); }
-  else statusEl.textContent = `${list.length} playlist${list.length === 1 ? "" : "s"}`;
-  currentVideos = []; updateSortControl();
-  if (!list.length) return playlistEmpty();
-  contentEl.className = "grid";
+  const all = res.playlists || [];
+  const list = all.filter((p) => p.enabled !== false);
+  if (!res.ok) {
+    statusEl.textContent = res.error || "Failed";
+    statusEl.classList.add("error");
+  } else {
+    const disabled = all.length - list.length;
+    statusEl.textContent =
+      `${list.length} playlist${list.length === 1 ? "" : "s"}` +
+      (disabled ? ` · ${disabled} disabled in Settings` : "");
+  }
+  currentVideos = [];
+  updateSortControl();
+  if (!list.length) {
+    if (all.length) {
+      contentEl.className = "";
+      contentEl.innerHTML = `
+        <div class="empty">
+          <h2>All playlists disabled</h2>
+          <p>Enable playlists in Settings to browse them here.</p>
+          <a class="btn btn-primary" href="options.html#playlists" target="_blank" rel="noopener">Open Settings</a>
+        </div>`;
+      return;
+    }
+    return playlistEmpty();
+  }
+  contentEl.className = "grid playlist-grid";
   contentEl.innerHTML = "";
   for (const p of list) {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "card playlist-card";
-    const thumb = p.thumbnail
-      ? `<img src="${escapeAttr(p.thumbnail)}" alt="" loading="lazy" />`
-      : `<div class="pl-placeholder">📂</div>`;
+    const thumbUrl = p.thumbnail || "";
+    const countLabel = formatVideoCount(p.videoCount) || "Playlist";
     card.innerHTML = `
-      <div class="card-thumb">${thumb}${p.videoCount ? `<span class="duration">${p.videoCount} videos</span>` : ""}</div>
-      <div class="card-body"><h3 class="card-title">${escapeHtml(p.name)}</h3>
-        <div class="card-meta"><span>Playlist</span></div></div>`;
+      <div class="card-thumb pl-thumb">
+        <div class="pl-stack" aria-hidden="true">
+          <span class="pl-stack-layer"></span>
+          <span class="pl-stack-layer"></span>
+        </div>
+        ${
+          thumbUrl
+            ? `<img src="${escapeAttr(thumbUrl)}" alt="" loading="lazy" />`
+            : `<div class="pl-placeholder">📂</div>`
+        }
+        <div class="pl-count-badge">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M22 7H2v1h20V7zm-9 5H2v1h11v-1zm0 5H2v1h11v-1zm7-5v7l5-3.5L20 12z"/></svg>
+          <span>${escapeHtml(countLabel)}</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3 class="card-title">${escapeHtml(p.name)}</h3>
+        <div class="card-meta">
+          <span>View full playlist</span>
+          ${p.source && p.source !== "manual" ? `<span class="pl-privacy">${escapeHtml(p.source)}</span>` : ""}
+        </div>
+      </div>`;
     card.addEventListener("click", () => openPlaylist(p));
     contentEl.appendChild(card);
   }
@@ -334,12 +493,18 @@ async function openPlaylist(p) {
   skeleton();
   const res = await send({ type: "FETCH_PLAYLIST", playlistId: p.playlistId });
   if (state.playlist !== p) return;
+
   const header = document.createElement("div");
   header.className = "playlist-header";
-  header.innerHTML = `<button type="button" class="btn" id="plBack">← All playlists</button>
-    <strong>${escapeHtml(p.name)}</strong>
-    <a class="btn" href="${escapeAttr(p.url)}" target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a>`;
-  header.querySelector("#plBack").addEventListener("click", () => { state.playlist = null; loadPlaylists(); });
+  header.innerHTML = `
+    <button type="button" class="btn" id="plBack">← All playlists</button>
+    <strong>${escapeHtml(p.name || res.title || "Playlist")}</strong>
+    <a class="btn" href="${escapeAttr(p.url || `https://www.youtube.com/playlist?list=${p.playlistId}`)}" target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a>`;
+  header.querySelector("#plBack").addEventListener("click", () => {
+    state.playlist = null;
+    loadPlaylists();
+  });
+
   if (!res.ok) {
     contentEl.className = "";
     contentEl.innerHTML = `<div class="empty"><h2>Couldn't load this playlist</h2><p>${escapeHtml(res.error)}</p></div>`;
@@ -347,19 +512,36 @@ async function openPlaylist(p) {
     statusEl.textContent = "";
     return;
   }
-  renderVideos(res.videos || []);
-  if (!(res.videos || []).length) {
-    contentEl.innerHTML = `<div class="empty"><h2>No public videos in RSS</h2><p>Private/auto playlists (Liked, Watch later) or empty playlists don't expose a feed. Open it on YouTube instead.</p></div>`;
+
+  const videos = res.videos || [];
+  if (!videos.length) {
     contentEl.className = "";
+    contentEl.innerHTML = `<div class="empty"><h2>No public videos in RSS</h2><p>Private/auto playlists (Liked, Watch later) or empty playlists don't expose a feed. Open it on YouTube instead.</p></div>`;
+    contentEl.prepend(header);
+    statusEl.textContent = "";
+    currentVideos = [];
+    updateSortControl();
+    return;
   }
+
+  // Same video card component as channel feeds
+  renderVideos(videos);
   contentEl.prepend(header);
-  const n = (res.videos || []).length;
+  const n = videos.length;
   statusEl.textContent = `${n} video${n === 1 ? "" : "s"} · RSS shows up to 15`;
 }
 
-refreshBtn.addEventListener("click", () =>
-  state.feedId === PLAYLISTS_ID ? (state.playlist ? openPlaylist(state.playlist) : loadPlaylists(true)) : loadFeed());
+refreshBtn.addEventListener("click", () => {
+  if (state.feedId === ALGORITHM_ID) return loadAlgorithm(true);
+  if (state.feedId === PLAYLISTS_ID) {
+    return state.playlist ? openPlaylist(state.playlist) : loadPlaylists(true);
+  }
+  return loadFeed();
+});
 
 renderTabs();
 initShortsToggle();
-chrome.storage.local.get("feedSort").then((r) => { sortPrefs = r.feedSort || {}; loadCurrent(); });
+chrome.storage.local.get("feedSort").then((r) => {
+  sortPrefs = r.feedSort || {};
+  loadCurrent();
+});

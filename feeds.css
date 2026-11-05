@@ -250,8 +250,82 @@ button {
   pointer-events: none;
 }
 
-/* Playlists */
-.playlist-card { text-align: left; cursor: pointer; border: none; font: inherit; color: inherit; padding: 0; }
-.pl-placeholder { width: 100%; height: 100%; display: grid; place-items: center; font-size: 48px; opacity: .6; }
-.playlist-header { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+/* Playlists — YouTube-like playlist cards */
+.playlist-grid .playlist-card {
+  text-align: left;
+  cursor: pointer;
+  border: none;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  background: transparent;
+  width: 100%;
+}
+.pl-thumb { position: relative; }
+.pl-stack {
+  position: absolute;
+  inset: 0 auto 0 auto;
+  right: 0;
+  width: 36%;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  pointer-events: none;
+}
+.pl-stack-layer {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.35);
+}
+.pl-stack-layer:nth-child(2) { width: 70%; opacity: 0.7; }
+.pl-count-badge {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 36%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  padding: 8px 6px;
+  pointer-events: none;
+}
+.pl-count-badge svg { opacity: 0.95; }
+.pl-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 48px;
+  opacity: 0.6;
+  background: var(--bg-elev);
+}
+.pl-privacy {
+  text-transform: capitalize;
+  opacity: 0.85;
+}
+.playlist-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
 .playlist-header strong { font-size: 18px; flex: 1; }
+
+/* Disabled list items in empty states already styled via .empty */
