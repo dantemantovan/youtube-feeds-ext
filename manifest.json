@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Feeds + No Shorts",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "Hide YouTube Shorts everywhere and browse curated feeds (Longform, AI Skills, Games, News), Home Algorithm recommendations, and Playlists.",
   "permissions": [
     "storage"
@@ -39,6 +39,19 @@
         "content/shorts-blocker.css"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*"
+      ],
+      "js": [
+        "content/add-to-feed.js"
+      ],
+      "css": [
+        "content/add-to-feed.css"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "icons": {

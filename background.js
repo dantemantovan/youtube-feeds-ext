@@ -115,9 +115,39 @@ async function handleMessage(msg) {
       return { ok: true, channels };
     }
     case "ADD_CHANNEL": {
-      const channel = await buildChannelFromInput(msg.input, msg.name || "");
-      const channels = await addChannel(msg.feedId, channel);
-      return { ok: true, channel, channels };
+      if (!FEED_IDS.includes(msg.feedId)) {
+        return { ok: false, error: "Invalid feed (curated feeds only)" };
+      }
+      let channel;
+      if (msg.channel && (msg.channel.channelId || msg.channel.handle || msg.channel.url)) {
+        // Pre-resolved from page UI — still resolve missing UC id when needed
+        const raw =
+          msg.channel.channelId ||
+          msg.channel.handle ||
+          msg.channel.url ||
+          msg.input ||
+          "";
+        channel = await buildChannelFromInput(raw, msg.channel.name || msg.name || "");
+        // Prefer page-provided display name / handle / url when present
+        if (msg.channel.name) channel.name = msg.channel.name;
+        if (msg.channel.handle) channel.handle = msg.channel.handle;
+        if (msg.channel.url) channel.url = msg.channel.url;
+        if (msg.channel.channelId && /^UC[\w-]{22}$/.test(msg.channel.channelId)) {
+          channel.channelId = msg.channel.channelId;
+        }
+        channel.enabled = true;
+      } else {
+        channel = await buildChannelFromInput(msg.input, msg.name || "");
+        channel.enabled = true;
+      }
+      const result = await addChannel(msg.feedId, channel);
+      return {
+        ok: true,
+        channel,
+        channels: result.channels,
+        added: result.added,
+        alreadyPresent: result.alreadyPresent,
+      };
     }
     case "REMOVE_CHANNEL": {
       const channels = await removeChannel(msg.feedId, msg.index);

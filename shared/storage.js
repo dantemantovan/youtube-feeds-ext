@@ -177,9 +177,12 @@ export async function addChannel(feedId, channel) {
       (channel.handle && c.handle === channel.handle) ||
       (channel.url && c.url === channel.url)
   );
-  if (exists) return channels;
+  if (exists) {
+    return { channels, added: false, alreadyPresent: true };
+  }
   channels.push({ ...channel, enabled: channel.enabled !== false });
-  return setFeedChannels(feedId, channels);
+  const next = await setFeedChannels(feedId, channels);
+  return { channels: next, added: true, alreadyPresent: false };
 }
 
 /** Toggle or set enabled flag; missing enabled means true (legacy). */

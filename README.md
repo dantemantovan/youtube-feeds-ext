@@ -3,7 +3,7 @@
 Manifest V3 Chrome / Edge extension that:
 
 1. **Hides YouTube Shorts** everywhere on `youtube.com` (shelves, tab/chip, tiles, related; redirects `/shorts/VIDEO_ID` → `/watch?v=VIDEO_ID`)
-2. Provides **four curated long-form feeds**: **Longform**, **AI Skills**, **Games**, and **News**
+2. Provides **four curated long-form feeds**: **Longform**, **AI Skills**, **Games**, and **News** — add channels from Settings or via **Add to curated feed** on youtube.com
 3. Adds an **Algorithm** tab that scrapes your signed-in YouTube Home into the same video cards (no API key, stays inside the extension)
 4. Shows **Playlists** with YouTube-like playlist cards and the same video cards as other feeds
 
@@ -52,6 +52,15 @@ To update after editing files: on the extensions page, click the refresh icon on
 5. Default sort for this tab is **Recommended (Home order)**; newest/oldest/popular still work when metadata allows.
 
 If you are signed out of YouTube in this profile (or Home cannot be parsed), the tab shows an empty state with a Sync/Refresh button.
+
+### Add to curated feed from YouTube (v1.5.0)
+
+On normal **channel** pages (and **watch** pages when the channel is identifiable), the extension injects an **Add to curated feed** control near the subscribe / channel-header actions (watch: near the channel name).
+
+- Opens a small menu with the four curated feeds only: **Longform**, **AI Skills**, **Games**, **News** (not Playlists, not Algorithm).
+- Choosing a feed resolves the channel id (`UC…`) and title from the page (`ytInitialData`, meta/canonical, URL, or owner link), then saves into the same `chrome.storage` `feeds` structure Settings uses (`enabled: true`).
+- If the channel is already in that feed, a toast says so (no duplicate). Adding to another feed only adds there (does not remove from others).
+- Personal lists stay out of git: page adds go to storage, not `personal-feeds.local.json`.
 
 ### Adding a channel
 
@@ -113,6 +122,7 @@ When **Hide Shorts on YouTube** is ON (default):
 - **RSS returns ~15 latest videos per channel** (YouTube public feed). Merged feeds are sorted by publish date descending.
 - Channel pages must be reachable to resolve new `@handles` (one-time); IDs are cached in storage.
 - YouTube DOM changes can break some Shorts selectors; CSS + link-based hiding covers most cases; update the content script if a new shelf style appears.
+- **Add to curated feed** depends on YouTube’s channel/watch DOM and embedded `ytInitialData`; header redesigns may move the button. Watch pages need a resolvable channel owner. Home, Search, Shorts, and playlist pages do not show the control.
 - `chrome.storage.sync` quota is limited; many channels still fit. Falls back to `local` if sync fails.
 
 ---
@@ -126,8 +136,8 @@ youtube-feeds-ext/
 ├── feeds.html / .css / .js
 ├── options.html / .css / .js
 ├── content/
-│   ├── shorts-blocker.js
-│   └── shorts-blocker.css
+│   ├── shorts-blocker.js / .css
+│   └── add-to-feed.js / .css   # Add to curated feed on youtube.com
 ├── shared/
 │   ├── defaults.js        # feed names + starter channels
 │   ├── storage.js

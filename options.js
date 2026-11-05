@@ -128,7 +128,11 @@ addForm.addEventListener("submit", async (e) => {
   }
   channelInput.value = "";
   nameInput.value = "";
-  setMsg(`Added ${res.channel?.name || "channel"}`, "ok");
+  if (res.alreadyPresent) {
+    setMsg(`Already in this feed: ${res.channel?.name || "channel"}`, "ok");
+  } else {
+    setMsg(`Added ${res.channel?.name || "channel"}`, "ok");
+  }
   loadChannels();
 });
 
