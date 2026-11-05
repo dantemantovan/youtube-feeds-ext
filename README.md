@@ -78,7 +78,7 @@ The public build ships only generic examples (Kurzgesagt in Longform, 3Blue1Brow
 
 ## Sorting
 
-A sort menu next to the status line offers **Recommended (Home order)** (Algorithm tab), **Newest to oldest**, **Oldest to newest**, **Most popular**, **Least popular**. The choice is saved per feed (one shared setting for playlist video lists) in `chrome.storage.local`. Dates come from RSS `published` or Home relative times. View counts come from Home/RSS or the player/watch fetch that also supplies durations; popularity sorts are disabled ("loading views…") until counts arrive.
+A sort menu next to the status line offers **Recommended (Home order)** (Algorithm tab), **Newest to oldest**, **Oldest to newest**, **Most popular**, **Least popular**, **Longest to shortest**, **Shortest to longest**. The choice is saved per feed (one shared setting for playlist video lists) in `chrome.storage.local`. Dates come from RSS `published` or Home relative times. View counts and durations come from Home/RSS or the player/watch fetch; popularity sorts are disabled ("loading views…") until counts arrive, and duration sorts are disabled ("loading durations…") until lengths arrive. Items still missing a duration always sort last (including for shortest).
 
 ## Playlists tab
 

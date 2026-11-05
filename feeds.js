@@ -33,6 +33,8 @@ const SORT_LABELS = {
   oldest: "Oldest to newest",
   popular: "Most popular",
   unpopular: "Least popular",
+  longest: "Longest to shortest",
+  shortest: "Shortest to longest",
 };
 let sortPrefs = {};
 let currentVideos = []; // videos currently rendered (for re-sorting)
@@ -45,6 +47,21 @@ function currentSort() {
   if (sortPrefs[sortKey()]) return sortPrefs[sortKey()];
   return state.feedId === ALGORITHM_ID ? "recommended" : "newest";
 }
+/** Normalize duration to seconds: number, numeric string, or HH:MM:SS / MM:SS. */
+function durationSeconds(d) {
+  if (d == null || d === "") return null;
+  if (typeof d === "number") return Number.isFinite(d) && d > 0 ? d : null;
+  const s = String(d).trim();
+  if (/^\d+(\.\d+)?$/.test(s)) {
+    const n = Number(s);
+    return n > 0 ? n : null;
+  }
+  if (/^\d+(:\d{2}){1,2}$/.test(s)) {
+    const n = s.split(":").reduce((a, x) => a * 60 + Number(x), 0);
+    return n > 0 ? n : null;
+  }
+  return null;
+}
 function sortVideos(list, mode) {
   if (mode === "recommended") return list.slice();
   const out = list.map((v, i) => ({ v, i }));
@@ -56,6 +73,14 @@ function sortVideos(list, mode) {
       if (va == null) return 1;
       if (vb == null) return -1;
       return mode === "popular" ? vb - va : va - vb;
+    }
+    if (mode === "longest" || mode === "shortest") {
+      const da = durationSeconds(a.v.duration), db = durationSeconds(b.v.duration);
+      // Missing duration always sorts last (even for shortest) so unknowns don't rank as short.
+      if (da == null && db == null) return a.i - b.i;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return mode === "longest" ? db - da : da - db;
     }
     const pa = a.v.publishedMs || 0, pb = b.v.publishedMs || 0;
     if (!pa && !pb) return a.i - b.i;
@@ -74,10 +99,15 @@ function updateSortControl() {
     }
   }
   const hasViews = currentVideos.some((v) => v.views != null);
+  const hasDurations = currentVideos.some((v) => durationSeconds(v.duration) != null);
   for (const opt of sortEl.options) {
     if (opt.value === "popular" || opt.value === "unpopular") {
       opt.disabled = !hasViews;
       opt.textContent = SORT_LABELS[opt.value] + (hasViews ? "" : " (loading views…)");
+    }
+    if (opt.value === "longest" || opt.value === "shortest") {
+      opt.disabled = !hasDurations;
+      opt.textContent = SORT_LABELS[opt.value] + (hasDurations ? "" : " (loading durations…)");
     }
   }
   const mode = currentSort();
@@ -90,6 +120,7 @@ function updateSortControl() {
 function applySort() {
   const mode = currentSort();
   if ((mode === "popular" || mode === "unpopular") && !currentVideos.some((v) => v.views != null)) return;
+  if ((mode === "longest" || mode === "shortest") && !currentVideos.some((v) => durationSeconds(v.duration) != null)) return;
   const byId = new Map([...contentEl.querySelectorAll("a.card[data-vid]")].map((el) => [el.dataset.vid, el]));
   for (const v of sortVideos(currentVideos, mode)) {
     const el = byId.get(v.id);
@@ -216,7 +247,8 @@ function renderVideos(videos) {
   updateSortControl();
   const mode = currentSort();
   const ordered =
-    (mode === "popular" || mode === "unpopular") && !videos.some((v) => v.views != null)
+    ((mode === "popular" || mode === "unpopular") && !videos.some((v) => v.views != null)) ||
+    ((mode === "longest" || mode === "shortest") && !videos.some((v) => durationSeconds(v.duration) != null))
       ? videos
       : sortVideos(videos, mode);
   for (const v of ordered) {
@@ -273,11 +305,23 @@ async function loadDurations(ids) {
       updateSortControl();
       if (/popular/.test(currentSort())) applySort();
     }
+    let gotDurations = false;
     for (const [id, sec] of Object.entries(durations)) {
+      if (sec) {
+        const v = currentVideos.find((x) => x.id === id);
+        if (v && durationSeconds(v.duration) == null) {
+          v.duration = sec;
+          gotDurations = true;
+        }
+      }
       contentEl.querySelectorAll(`.duration[data-vid="${CSS.escape(id)}"]`).forEach((el) => {
         if (sec) el.textContent = formatDuration(sec);
         else el.hidden = true; // live/unknown: hide, don't destroy
       });
+    }
+    if (gotDurations) {
+      updateSortControl();
+      if (/longest|shortest/.test(currentSort())) applySort();
     }
   }
 }
