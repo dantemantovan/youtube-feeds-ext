@@ -149,6 +149,30 @@ function send(msg) {
   });
 }
 
+/** Short local datetime for video cards: M/D/YY h:mm AM/PM (browser local TZ). */
+function formatLocalDateTime(isoOrMs) {
+  const ms = typeof isoOrMs === "number" ? isoOrMs : Date.parse(isoOrMs || "");
+  if (!ms || Number.isNaN(ms)) return "";
+  const d = new Date(ms);
+  const date = `${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)}`;
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${date} ${h}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+/** Card published label: prefer absolute local datetime; never show raw ISO. */
+function formatCardPublished(v) {
+  const formatted = formatLocalDateTime(v.publishedMs || v.published);
+  if (formatted) return formatted;
+  const p = (v.published || "").trim();
+  // Keep non-ISO relative labels (e.g. "2 hours ago") only when no parseable date.
+  if (p && !/^\d{4}-\d{2}-\d{2}T/.test(p) && !/^\d{4}-\d{2}-\d{2}\b/.test(p)) return p;
+  return "";
+}
+
 function relativeTime(isoOrMs) {
   const ms = typeof isoOrMs === "number" ? isoOrMs : Date.parse(isoOrMs || "");
   if (!ms || Number.isNaN(ms)) return "";
@@ -268,7 +292,7 @@ function renderVideos(videos) {
         <div class="card-meta">
           <span>${escapeHtml(v.author || "")}</span>
           <span class="views" data-vid="${escapeAttr(v.id)}">${escapeHtml(formatViews(v.views))}</span>
-          <span>${escapeHtml(v.published || relativeTime(v.publishedMs || v.published))}</span>
+          <span>${escapeHtml(formatCardPublished(v))}</span>
         </div>
       </div>`;
     contentEl.appendChild(a);
