@@ -32,9 +32,21 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 // Action button opens the feeds UI (full page, not popup)
-chrome.action.onClicked.addListener(() => {
+// Never navigates the current tab: focus an existing Feeds tab, else open a new one beside it.
+chrome.action.onClicked.addListener(async (tab) => {
   const url = chrome.runtime.getURL("feeds.html");
-  chrome.tabs.create({ url });
+  let existing = null;
+  try {
+    // getContexts finds our own feeds tab without needing the "tabs" permission
+    const ctx = await chrome.runtime.getContexts({ contextTypes: ["TAB"], documentUrls: [url] });
+    if (ctx[0]?.tabId > 0) existing = { id: ctx[0].tabId, windowId: ctx[0].windowId };
+  } catch (_) {}
+  if (existing?.id) {
+    await chrome.tabs.update(existing.id, { active: true });
+    if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true });
+    return;
+  }
+  chrome.tabs.create({ url, active: true, index: tab?.index != null ? tab.index + 1 : undefined, openerTabId: tab?.id });
 });
 
 /**

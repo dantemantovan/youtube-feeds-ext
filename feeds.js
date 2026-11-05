@@ -140,7 +140,7 @@ function emptyState() {
     <div class="empty">
       <h2>No videos yet</h2>
       <p>This feed has no channels yet. Add channel URLs or @handles in Settings — the extension ships only a couple of generic examples.</p>
-      <a class="btn btn-primary" href="options.html">Add channels in Settings</a>
+      <a class="btn btn-primary" href="options.html" target="_blank" rel="noopener">Add channels in Settings</a>
     </div>`;
 }
 
@@ -206,7 +206,7 @@ async function loadDurations(ids) {
     for (const [id, sec] of Object.entries(durations)) {
       contentEl.querySelectorAll(`.duration[data-vid="${CSS.escape(id)}"]`).forEach((el) => {
         if (sec) el.textContent = formatDuration(sec);
-        else el.remove();
+        else el.hidden = true; // live/unknown: hide, don't destroy (a later refresh can fill it)
       });
     }
   }
@@ -291,7 +291,7 @@ function playlistEmpty() {
     <div class="empty">
       <h2>Playlists load after sync</h2>
       <p>No playlists stored yet. In Settings you can sync from YouTube (uses your browser's YouTube login), paste a playlist URL, or import a JSON list.</p>
-      <a class="btn btn-primary" href="options.html#playlists">Manage playlists in Settings</a>
+      <a class="btn btn-primary" href="options.html#playlists" target="_blank" rel="noopener">Manage playlists in Settings</a>
     </div>`;
 }
 
