@@ -1,5 +1,3 @@
-import { FEED_IDS, FEED_META } from "./shared/defaults.js";
-
 const feedTabs = document.getElementById("feedTabs");
 const channelList = document.getElementById("channelList");
 const addForm = document.getElementById("addForm");
@@ -10,8 +8,13 @@ const shortsToggle = document.getElementById("shortsToggle");
 const resetBtn = document.getElementById("resetBtn");
 const addBtn = document.getElementById("addBtn");
 
+const newFeedBtn = document.getElementById("newFeedBtn");
+const renameFeedBtn = document.getElementById("renameFeedBtn");
+const deleteFeedBtn = document.getElementById("deleteFeedBtn");
+
 const state = {
   feedId: ((v) => (v === "lore" ? "longform" : v))(localStorage.getItem("yfn.settingsFeed")) || "longform",
+  feeds: [],
 };
 
 function send(msg) {
@@ -31,23 +34,80 @@ function setMsg(text, kind = "") {
   formMsg.className = "msg" + (kind ? " " + kind : "");
 }
 
+async function loadFeedList() {
+  const res = await send({ type: "GET_CURATED_FEEDS" });
+  state.feeds = res.feeds || [];
+  if (!state.feeds.some((f) => f.id === state.feedId) && state.feeds.length) {
+    state.feedId = state.feeds[0].id;
+    localStorage.setItem("yfn.settingsFeed", state.feedId);
+  }
+}
+
+function currentFeed() {
+  return state.feeds.find((f) => f.id === state.feedId);
+}
+
 function renderTabs() {
   feedTabs.innerHTML = "";
-  for (const id of FEED_IDS) {
-    const meta = FEED_META[id];
+  for (const meta of state.feeds) {
+    const id = meta.id;
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "feed-tab" + (id === state.feedId ? " active" : "");
-    btn.textContent = `${meta.icon} ${meta.name}`;
+    btn.textContent = `${meta.icon || "📁"} ${meta.name}`;
+    btn.title = "Double-click to rename";
     btn.addEventListener("click", () => {
       state.feedId = id;
       localStorage.setItem("yfn.settingsFeed", id);
       renderTabs();
       loadChannels();
     });
+    btn.addEventListener("dblclick", () => renameCurrent());
     feedTabs.appendChild(btn);
   }
+  const cur = currentFeed();
+  deleteFeedBtn.hidden = !cur || !!cur.builtin;
 }
+
+async function refreshFeeds() {
+  await loadFeedList();
+  renderTabs();
+  loadChannels();
+}
+
+newFeedBtn.addEventListener("click", async () => {
+  const name = prompt("Name for the new curated feed:", "");
+  if (name == null || !name.trim()) return;
+  const res = await send({ type: "CREATE_FEED", name });
+  if (!res.ok) return setMsg(res.error || "Could not create feed", "error");
+  state.feedId = res.feed.id;
+  localStorage.setItem("yfn.settingsFeed", state.feedId);
+  setMsg(`Created feed "${res.feed.name}" — add channels below`, "ok");
+  refreshFeeds();
+});
+
+async function renameCurrent() {
+  const cur = currentFeed();
+  if (!cur) return;
+  const name = prompt(`Rename "${cur.name}" to:`, cur.name);
+  if (name == null || !name.trim() || name.trim() === cur.name) return;
+  const res = await send({ type: "RENAME_FEED", feedId: cur.id, name });
+  if (!res.ok) return setMsg(res.error || "Rename failed", "error");
+  setMsg(`Renamed to "${res.feed.name}"`, "ok");
+  refreshFeeds();
+}
+renameFeedBtn.addEventListener("click", renameCurrent);
+
+deleteFeedBtn.addEventListener("click", async () => {
+  const cur = currentFeed();
+  if (!cur || cur.builtin) return;
+  const n = cur.channelCount || 0;
+  if (!confirm(`Delete feed "${cur.name}"${n ? ` and its ${n} channel(s)` : ""}? This cannot be undone.`)) return;
+  const res = await send({ type: "DELETE_FEED", feedId: cur.id });
+  if (!res.ok) return setMsg(res.error || "Delete failed", "error");
+  setMsg(`Deleted "${cur.name}"`, "ok");
+  refreshFeeds();
+});
 
 function escapeHtml(s) {
   return String(s || "")
@@ -134,6 +194,7 @@ addForm.addEventListener("submit", async (e) => {
     setMsg(`Added ${res.channel?.name || "channel"}`, "ok");
   }
   loadChannels();
+  loadFeedList().then(renderTabs);
 });
 
 async function initShortsToggle() {
@@ -150,7 +211,7 @@ async function initShortsToggle() {
 }
 
 resetBtn.addEventListener("click", async () => {
-  if (!confirm("Reset all feeds to the built-in starter channels? Your custom channels will be removed.")) {
+  if (!confirm("Reset all feeds to the built-in starter channels? Your channels will be removed (feed names and custom feeds are kept, custom feeds become empty).")) {
     return;
   }
   const res = await send({ type: "RESET_STARTERS" });
@@ -159,12 +220,11 @@ resetBtn.addEventListener("click", async () => {
     return;
   }
   setMsg("Restored starter channels", "ok");
-  loadChannels();
+  refreshFeeds();
 });
 
-renderTabs();
 initShortsToggle();
-loadChannels();
+refreshFeeds();
 
 // ---- Playlists ----
 const plList = document.getElementById("plList");

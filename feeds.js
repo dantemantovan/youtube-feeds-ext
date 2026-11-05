@@ -1,4 +1,3 @@
-import { FEED_IDS, FEED_META } from "./shared/defaults.js";
 
 const tabsEl = document.getElementById("tabs");
 const contentEl = document.getElementById("content");
@@ -25,6 +24,7 @@ const state = {
   feedId: ((v) => (v === "lore" ? "longform" : v))(localStorage.getItem("yfn.activeFeed")) || "longform",
   loading: false,
   playlist: null, // open playlist {playlistId, name, url, ...} or null
+  curated: [], // [{id, name, icon, description, builtin}]
 };
 const sortEl = document.getElementById("sortSelect");
 const SORT_LABELS = {
@@ -197,12 +197,13 @@ function relativeTime(isoOrMs) {
 function tabMeta(id) {
   if (id === ALGORITHM_ID) return ALGORITHM_META;
   if (id === PLAYLISTS_ID) return PLAYLISTS_META;
-  return FEED_META[id];
+  const f = state.curated.find((x) => x.id === id);
+  return f ? { ...f, icon: f.icon || "📁", description: f.description || `Curated feed: ${f.name}` } : null;
 }
 
 function renderTabs() {
   tabsEl.innerHTML = "";
-  const ids = [...FEED_IDS, ALGORITHM_ID, PLAYLISTS_ID];
+  const ids = [...state.curated.map((f) => f.id), ALGORITHM_ID, PLAYLISTS_ID];
   for (const id of ids) {
     const meta = tabMeta(id);
     const btn = document.createElement("button");
@@ -607,9 +608,30 @@ refreshBtn.addEventListener("click", () => {
   return loadFeed();
 });
 
-renderTabs();
+async function loadCuratedList() {
+  const res = await send({ type: "GET_CURATED_FEEDS" });
+  state.curated = res.ok ? res.feeds || [] : [];
+  const valid = [...state.curated.map((f) => f.id), ALGORITHM_ID, PLAYLISTS_ID];
+  if (!valid.includes(state.feedId)) {
+    state.feedId = state.curated[0]?.id || ALGORITHM_ID;
+    localStorage.setItem("yfn.activeFeed", state.feedId);
+    return true;
+  }
+  return false;
+}
+
+// Re-render tabs when feeds are created/renamed/deleted in Settings
+chrome.storage.onChanged.addListener((changes) => {
+  if (!changes.feedList) return;
+  loadCuratedList().then((switched) => {
+    renderTabs();
+    if (switched) loadCurrent();
+  });
+});
+
 initShortsToggle();
-chrome.storage.local.get("feedSort").then((r) => {
+Promise.all([loadCuratedList(), chrome.storage.local.get("feedSort")]).then(([, r]) => {
   sortPrefs = r.feedSort || {};
+  renderTabs();
   loadCurrent();
 });

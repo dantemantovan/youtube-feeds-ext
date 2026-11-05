@@ -3,7 +3,7 @@
 Manifest V3 Chrome / Edge extension that:
 
 1. **Hides YouTube Shorts** everywhere on `youtube.com` (shelves, tab/chip, tiles, related; redirects `/shorts/VIDEO_ID` → `/watch?v=VIDEO_ID`)
-2. Provides **four curated long-form feeds**: **Longform**, **AI Skills**, **Games**, and **News** — add channels from Settings or via **Add to curated feed** on youtube.com
+2. Provides **curated feeds** — four built-ins (**Longform**, **AI Skills**, **Games**, **News**) that you can **rename**, plus unlimited **custom feeds** you create — add channels from Settings or via **Add to curated feed** on youtube.com
 3. Adds an **Algorithm** tab that scrapes your signed-in YouTube Home into the same video cards (no API key, stays inside the extension)
 4. Shows **Playlists** with YouTube-like playlist cards and the same video cards as other feeds
 
@@ -33,7 +33,7 @@ To update after editing files: on the extensions page, click the refresh icon on
 
 ## Using the feeds
 
-- Toolbar action → opens **Feeds** (`feeds.html`) with tabs: Longform · AI Skills · Games · News · **Algorithm** · Playlists.
+- Toolbar action → opens **Feeds** (`feeds.html`) with tabs: your curated feeds (built-ins + custom, using your names) · **Algorithm** · Playlists.
 - Focusing the toolbar icon focuses an existing Feeds tab when one is already open (does not navigate your current tab away).
 - Upgrading from an older version: a stored `lore` feed is automatically migrated to `longform` on load (your channels are kept), and a missing `news` feed is filled from starters.
 - Each video card shows thumbnail, duration badge, title, channel, views/time; click opens YouTube in a **new tab**.
@@ -53,11 +53,23 @@ To update after editing files: on the extensions page, click the refresh icon on
 
 If you are signed out of YouTube in this profile (or Home cannot be parsed), the tab shows an empty state with a Sync/Refresh button.
 
+### Create, rename, and delete curated feeds (v1.6.0)
+
+In **Settings → Feed channels**, below the feed tabs:
+
+- **＋ New feed** — prompts for a name and creates an empty curated feed (e.g. "Cooking"). Add channels with the form below or via **Add to curated feed** on YouTube.
+- **✎ Rename feed** (or double-click a feed tab) — renames the selected feed. Works for built-ins too (e.g. Longform → "Deep Dives"); the id stays stable so channels and sort prefs are kept.
+- **Delete feed** — shown only for custom feeds; asks for confirmation. Built-ins can be renamed but not deleted.
+
+Names must be unique (case-insensitive, max 40 chars). Algorithm and Playlists are system tabs and are not curated feeds.
+
+**Storage (v1.6.0):** `feedList` = ordered `[{ id, name, icon, description, builtin }]`; `feeds` = `{ [id]: Channel[] }`. On first load after upgrading, the four built-ins (`longform`, `ai-skills`, `games`, `news`) are written into `feedList` with their channels untouched; any other non-system key already in `feeds` is adopted as a custom feed. New feeds get ids like `c-cooking` (`-2`, `-3` on collision). **Reset starters** reseeds built-in channels, keeps names and custom feeds (custom feeds are emptied).
+
 ### Add to curated feed from YouTube (v1.5.0)
 
 On normal **channel** pages (and **watch** pages when the channel is identifiable), the extension injects an **Add to curated feed** control near the subscribe / channel-header actions (watch: near the channel name).
 
-- Opens a small menu with the four curated feeds only: **Longform**, **AI Skills**, **Games**, **News** (not Playlists, not Algorithm).
+- Opens a small menu listing **all your curated feeds** (built-ins with your names + custom feeds, loaded live from storage) — never Playlists or Algorithm.
 - Choosing a feed resolves the channel id (`UC…`) and title from the page (`ytInitialData`, meta/canonical, URL, or owner link), then saves into the same `chrome.storage` `feeds` structure Settings uses (`enabled: true`).
 - If the channel is already in that feed, a toast says so (no duplicate). Adding to another feed only adds there (does not remove from others).
 - Personal lists stay out of git: page adds go to storage, not `personal-feeds.local.json`.
@@ -139,7 +151,7 @@ youtube-feeds-ext/
 │   ├── shorts-blocker.js / .css
 │   └── add-to-feed.js / .css   # Add to curated feed on youtube.com
 ├── shared/
-│   ├── defaults.js        # feed names + starter channels
+│   ├── defaults.js        # built-in feed defaults + starter channels
 │   ├── storage.js
 │   ├── resolve.js         # @handle / URL → channel ID
 │   ├── rss.js

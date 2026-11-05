@@ -16,10 +16,14 @@ import {
   setChannelEnabled,
   isChannelEnabled,
   resetToStarters,
+  getCuratedFeeds,
+  isCuratedFeedId,
+  createFeed,
+  renameFeed,
+  deleteFeed,
 } from "./shared/storage.js";
 import { resolveChannelId, buildChannelFromInput, parseChannelInput } from "./shared/resolve.js";
 import { getChannelVideos, mergeAndSort } from "./shared/rss.js";
-import { FEED_IDS, FEED_META } from "./shared/defaults.js";
 import {
   getPlaylists, setPlaylists, addPlaylists, removePlaylist,
   refreshPlaylists, getPlaylistVideos, parsePlaylistId,
@@ -103,8 +107,26 @@ async function handleMessage(msg) {
     }
     case "GET_FEEDS_META": {
       await ensureInitialized();
-      const feeds = await getFeeds();
-      return { ok: true, feedIds: FEED_IDS, meta: FEED_META, feeds };
+      const list = await getCuratedFeeds();
+      const meta = {};
+      for (const f of list) meta[f.id] = { id: f.id, name: f.name, icon: f.icon, description: f.description, builtin: !!f.builtin };
+      return { ok: true, feedIds: list.map((f) => f.id), meta, feeds: Object.fromEntries(list.map((f) => [f.id, f.channels])) };
+    }
+    case "GET_CURATED_FEEDS": {
+      const list = await getCuratedFeeds();
+      return { ok: true, feeds: list.map(({ channels, ...f }) => ({ ...f, channelCount: channels.length })) };
+    }
+    case "CREATE_FEED": {
+      const feed = await createFeed(msg.name, msg.icon);
+      return { ok: true, feed };
+    }
+    case "RENAME_FEED": {
+      const feed = await renameFeed(msg.feedId, msg.name);
+      return { ok: true, feed };
+    }
+    case "DELETE_FEED": {
+      const feeds = await deleteFeed(msg.feedId);
+      return { ok: true, feeds };
     }
     case "GET_FEED_CHANNELS": {
       const channels = await getFeedChannels(msg.feedId);
@@ -115,7 +137,7 @@ async function handleMessage(msg) {
       return { ok: true, channels };
     }
     case "ADD_CHANNEL": {
-      if (!FEED_IDS.includes(msg.feedId)) {
+      if (!(await isCuratedFeedId(msg.feedId))) {
         return { ok: false, error: "Invalid feed (curated feeds only)" };
       }
       let channel;

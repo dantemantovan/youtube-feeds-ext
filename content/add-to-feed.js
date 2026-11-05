@@ -6,7 +6,9 @@
 (function () {
   "use strict";
 
-  const CURATED_FEEDS = [
+  // Curated feeds are loaded dynamically from the extension (custom names + user-created feeds).
+  // Playlists / Algorithm are system tabs and never appear here.
+  const FALLBACK_FEEDS = [
     { id: "longform", name: "Longform", icon: "📜" },
     { id: "ai-skills", name: "AI Skills", icon: "🤖" },
     { id: "games", name: "Games", icon: "🎮" },
@@ -380,26 +382,40 @@
     menu.setAttribute("role", "menu");
     menu.hidden = true;
 
-    for (const f of CURATED_FEEDS) {
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = "yfn-add-feed-item";
-      item.setAttribute("role", "menuitem");
-      item.dataset.feedId = f.id;
-      item.innerHTML =
-        `<span class="yfn-add-feed-item-icon">${f.icon}</span>` +
-        `<span>${f.name}</span>`;
-      item.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onPickFeed(f.id, f.name);
-      });
-      menu.appendChild(item);
+    function fillMenu(feeds) {
+      menu.textContent = "";
+      for (const f of feeds) {
+        if (f.id === "algorithm" || f.id === "playlists") continue;
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "yfn-add-feed-item";
+        item.setAttribute("role", "menuitem");
+        item.dataset.feedId = f.id;
+        const icon = document.createElement("span");
+        icon.className = "yfn-add-feed-item-icon";
+        icon.textContent = f.icon || "📁";
+        const label = document.createElement("span");
+        label.textContent = f.name;
+        item.append(icon, label);
+        item.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onPickFeed(f.id, f.name);
+        });
+        menu.appendChild(item);
+      }
     }
+    fillMenu(FALLBACK_FEEDS);
+    const refreshMenu = () =>
+      send({ type: "GET_CURATED_FEEDS" }).then((res) => {
+        if (res.ok && Array.isArray(res.feeds)) fillMenu(res.feeds);
+      });
+    refreshMenu();
 
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (!menuOpen) refreshMenu();
       menuOpen = !menuOpen;
       menu.hidden = !menuOpen;
       btn.setAttribute("aria-expanded", menuOpen ? "true" : "false");

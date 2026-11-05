@@ -12,7 +12,7 @@
     <div class="top">
       <div>
         <h1>Settings</h1>
-        <p class="sub">Manage curated feeds and Shorts blocking. Starter channels are editable.</p>
+        <p class="sub">Manage curated feeds and Shorts blocking. Create new feeds or rename any curated feed. Starter channels are editable.</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <a class="btn" href="feeds.html">← Back to Feeds</a>
@@ -36,6 +36,11 @@
       <p class="hint">Add a channel URL, @handle, or channel ID (UC…). IDs are resolved once and cached. Use the On/Off toggle to exclude a channel from feeds without deleting it. RSS returns ~15 latest videos per channel; Shorts links are dropped.</p>
 
       <div class="feed-tabs" id="feedTabs"></div>
+      <div class="feed-manage" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">
+        <button type="button" class="btn btn-primary" id="newFeedBtn">＋ New feed</button>
+        <button type="button" class="btn" id="renameFeedBtn">✎ Rename feed</button>
+        <button type="button" class="btn btn-danger" id="deleteFeedBtn" hidden>Delete feed</button>
+      </div>
 
       <form class="add-form" id="addForm">
         <input type="text" id="channelInput" placeholder="https://www.youtube.com/@handle  or  @handle  or  UC…" required autocomplete="off" />

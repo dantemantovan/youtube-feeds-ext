@@ -3,7 +3,11 @@
  * Users can edit/remove these in Settings.
  */
 
+/** Built-in curated feed ids (renameable, not deletable). Custom feeds live in storage `feedList`. */
 export const FEED_IDS = ["longform", "ai-skills", "games", "news"];
+
+/** System tabs — never curated feed ids. */
+export const RESERVED_FEED_IDS = ["algorithm", "playlists"];
 
 /** Legacy feed ids renamed in storage on load (old -> new). */
 export const LEGACY_FEED_ID_MAP = { lore: "longform" };

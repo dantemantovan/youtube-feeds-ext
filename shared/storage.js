@@ -3,16 +3,18 @@
  * Shape:
  * {
  *   settings: { hideShorts: boolean, feedsInitialized: boolean },
- *   feeds: { longform: Channel[], "ai-skills": Channel[], games: Channel[], news: Channel[] },
+ *   feedList: Array<{ id, name, icon, description, builtin }>,  // ordered curated feed metadata (v1.6.0+)
+ *   feeds: { [feedId: string]: Channel[] },                      // channels per curated feed id
  *   channelIdCache: { [urlOrHandle: string]: string }  // UC...
  * }
  */
 
-import { DEFAULT_SETTINGS, getStarterChannels, LEGACY_FEED_ID_MAP, STARTERS_VERSION } from "./defaults.js";
+import { DEFAULT_SETTINGS, getStarterChannels, LEGACY_FEED_ID_MAP, STARTERS_VERSION, FEED_IDS, FEED_META, RESERVED_FEED_IDS } from "./defaults.js";
 
 const KEYS = {
   settings: "settings",
   feeds: "feeds",
+  feedList: "feedList",
   channelIdCache: "channelIdCache",
 };
 
@@ -85,7 +87,7 @@ export async function loadStarters() {
 
 /** Ensure starters exist on first run. */
 export async function ensureInitialized() {
-  const data = await get([KEYS.settings, KEYS.feeds]);
+  const data = await get([KEYS.settings, KEYS.feeds, KEYS.feedList]);
   const settings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
   let feeds = data.feeds;
   let changed = false;
@@ -127,11 +129,31 @@ export async function ensureInitialized() {
     }
   }
 
-  if (changed) {
-    await set({ [KEYS.settings]: settings, [KEYS.feeds]: feeds });
+  // Curated feed list (v1.6.0): migrate built-ins + any extra feed keys into an ordered list
+  let feedList = Array.isArray(data.feedList) ? data.feedList.filter((f) => f && f.id) : null;
+  if (!feedList) {
+    feedList = FEED_IDS.map((id) => ({ ...FEED_META[id], builtin: true }));
+    changed = true;
+  }
+  for (const id of Object.keys(feeds)) {
+    if (RESERVED_FEED_IDS.includes(id)) continue;
+    if (!feedList.some((f) => f.id === id)) {
+      feedList.push(FEED_META[id] ? { ...FEED_META[id], builtin: true } : { id, name: id, icon: "📁", description: "", builtin: false });
+      changed = true;
+    }
+  }
+  for (const f of feedList) {
+    if (!Array.isArray(feeds[f.id])) {
+      feeds[f.id] = [];
+      changed = true;
+    }
   }
 
-  return { settings, feeds };
+  if (changed) {
+    await set({ [KEYS.settings]: settings, [KEYS.feeds]: feeds, [KEYS.feedList]: feedList });
+  }
+
+  return { settings, feeds, feedList };
 }
 
 export async function getSettings() {
@@ -154,6 +176,68 @@ export async function getFeeds() {
 export async function saveFeeds(feeds) {
   await set({ [KEYS.feeds]: feeds });
   return feeds;
+}
+
+/** Ordered curated feeds: [{ id, name, icon, description, builtin, channels }] */
+export async function getCuratedFeeds() {
+  const { feeds, feedList } = await ensureInitialized();
+  return feedList.map((f) => ({ ...f, channels: feeds[f.id] || [] }));
+}
+
+export async function getFeedList() {
+  const { feedList } = await ensureInitialized();
+  return feedList;
+}
+
+export async function isCuratedFeedId(feedId) {
+  return (await getFeedList()).some((f) => f.id === feedId);
+}
+
+function slugify(name) {
+  return String(name || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || "feed";
+}
+
+function cleanName(name) {
+  const n = String(name || "").trim().replace(/\s+/g, " ").slice(0, 40);
+  if (!n) throw new Error("Feed name is required");
+  return n;
+}
+
+export async function createFeed(name, icon) {
+  const { feeds, feedList } = await ensureInitialized();
+  const display = cleanName(name);
+  if (feedList.some((f) => f.name.toLowerCase() === display.toLowerCase())) throw new Error(`A feed named "${display}" already exists`);
+  const base = "c-" + slugify(display);
+  let id = base;
+  for (let i = 2; feedList.some((f) => f.id === id) || feeds[id] || RESERVED_FEED_IDS.includes(id); i++) id = `${base}-${i}`;
+  const feed = { id, name: display, icon: (icon || "").trim() || "📁", description: "", builtin: false };
+  feedList.push(feed);
+  feeds[id] = [];
+  await set({ [KEYS.feeds]: feeds, [KEYS.feedList]: feedList });
+  return feed;
+}
+
+export async function renameFeed(feedId, name) {
+  const { feedList } = await ensureInitialized();
+  const feed = feedList.find((f) => f.id === feedId);
+  if (!feed) throw new Error("Unknown feed");
+  const display = cleanName(name);
+  if (feedList.some((f) => f.id !== feedId && f.name.toLowerCase() === display.toLowerCase())) throw new Error(`A feed named "${display}" already exists`);
+  feed.name = display;
+  await set({ [KEYS.feedList]: feedList });
+  return feed;
+}
+
+/** Delete a custom (non built-in) feed and its channels. */
+export async function deleteFeed(feedId) {
+  const { feeds, feedList } = await ensureInitialized();
+  const feed = feedList.find((f) => f.id === feedId);
+  if (!feed) throw new Error("Unknown feed");
+  if (feed.builtin) throw new Error("Built-in feeds can be renamed but not deleted");
+  const nextList = feedList.filter((f) => f.id !== feedId);
+  delete feeds[feedId];
+  await set({ [KEYS.feeds]: feeds, [KEYS.feedList]: nextList });
+  return nextList;
 }
 
 export async function getFeedChannels(feedId) {
@@ -215,9 +299,13 @@ export async function cacheChannelId(key, channelId) {
   return channelId;
 }
 
+/** Reset built-in feed channels to starters. Keeps feed names and custom feeds (their channels are cleared). */
 export async function resetToStarters() {
-  const feeds = await loadStarters();
+  const { feedList } = await ensureInitialized();
+  const starters = await loadStarters();
+  const feeds = {};
+  for (const f of feedList) feeds[f.id] = starters[f.id] || [];
   const settings = { ...DEFAULT_SETTINGS, feedsInitialized: true, startersVersion: STARTERS_VERSION };
   await set({ [KEYS.settings]: settings, [KEYS.feeds]: feeds });
-  return { settings, feeds };
+  return { settings, feeds, feedList };
 }
