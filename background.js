@@ -1,4 +1,4 @@
-import { registerEmbedReferer } from "./shared/embed.js";
+import { registerEmbedReferer, prepareEmbed } from "./shared/embed.js";
 import { getDurations, views as viewCounts } from "./shared/duration.js";
 /**
  * Service worker: open feeds page on action click; message handlers for
@@ -252,6 +252,8 @@ async function handleMessage(msg) {
     case "FETCH_ALGORITHM": {
       return fetchAlgorithmFeed({ force: !!msg.force });
     }
+    case "PREPARE_EMBED":
+      return prepareEmbed();
     case "PING":
       return { ok: true, pong: true };
     default:

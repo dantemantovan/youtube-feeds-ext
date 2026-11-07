@@ -171,7 +171,7 @@ function openInline(v, card) {
   if (reopenSame) return true; // clicking the playing video again collapses it
 
   const watchUrl = `https://www.youtube.com/watch?v=${id}`;
-  const frame = h("iframe", {
+  const makeFrame = () => h("iframe", {
     class: "inline-frame",
     src: `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1`,
     title: String(v.title || "YouTube video player"),
@@ -188,7 +188,8 @@ function openInline(v, card) {
       h("div", { class: "inline-actions" },
         h("a", { class: "btn", href: watchUrl, target: "_blank", rel: "noreferrer" }, "Open on YouTube ↗"),
         closeBtn)),
-    h("div", { class: "inline-frame-wrap" }, frame),
+    h("div", { class: "inline-frame-wrap" }, h("div", { class: "inline-status" }, "Preparing player…")),
+    h("details", { class: "inline-diag" }, h("summary", null, "Player diagnostics"), h("code", null, "checking…")),
     h("p", { class: "inline-note" },
       "Plays in YouTube's embedded player (the video loads from YouTube). Some videos don't allow embedding or need sign-in/age checks — use Open on YouTube for those."));
   closeBtn.addEventListener("click", () => {
@@ -203,10 +204,51 @@ function openInline(v, card) {
   const rowEnd = Math.min(cards.length, Math.ceil((cards.indexOf(card) + 1) / cols) * cols);
   cards[rowEnd - 1].after(panel);
   inline = { panel, card, id };
+  preparePlayer(inline, makeFrame);
   card.classList.add("playing");
   card.setAttribute("aria-expanded", "true");
   panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
   return true;
+}
+
+const YT_EMBED_ORIGINS = { origins: ["https://www.youtube.com/*", "https://youtube.com/*"] };
+
+/** Only insert the iframe once host access and the identifying-Referer rule are confirmed (avoids error 153). */
+async function preparePlayer(entry, makeFrame) {
+  const wrap = entry.panel.querySelector(".inline-frame-wrap");
+  const diag = entry.panel.querySelector(".inline-diag code");
+  const res = await send({ type: "PREPARE_EMBED" });
+  if (inline !== entry) return; // closed or replaced meanwhile
+  diag.textContent =
+    `v${res.version || "?"} · YouTube access: ${res.hostAccess ? "granted" : "NOT granted"} · ` +
+    `player rule: ${res.rule ? "active" : "missing"}` +
+    (res.matched == null ? "" : ` · rule test: ${res.matched ? "matches" : "no match"}`) +
+    ` · Referer: ${res.referer || "?"}` +
+    (res.error ? ` · error: ${res.error}` : "");
+  if (res.ok) {
+    setChildren(wrap, makeFrame());
+    return;
+  }
+  const msg = !res.hostAccess
+    ? "The inline player needs access to youtube.com, which the browser hasn't granted. Allow it, or use Open on YouTube."
+    : "The player's YouTube identification rule couldn't be installed, so YouTube would show error 153. Use Open on YouTube, and see Player diagnostics.";
+  const children = [h("p", null, msg)];
+  if (!res.hostAccess) {
+    const allow = h("button", { type: "button", class: "btn btn-primary" }, "Allow youtube.com access");
+    allow.addEventListener("click", () => {
+      // Called directly in the click (user gesture), before any await.
+      chrome.permissions.request(YT_EMBED_ORIGINS).then((granted) => {
+        if (granted && inline === entry) {
+          setChildren(wrap, h("div", { class: "inline-status" }, "Preparing player…"));
+          preparePlayer(entry, makeFrame);
+        } else if (!granted && inline === entry) {
+          setChildren(wrap, h("div", { class: "inline-status" }, h("p", null, "Access was not granted. Use Open on YouTube to watch this video.")));
+        }
+      }, () => {});
+    });
+    children.push(allow);
+  }
+  setChildren(wrap, h("div", { class: "inline-status" }, ...children));
 }
 
 document.addEventListener("keydown", (e) => {
