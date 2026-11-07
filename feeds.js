@@ -123,11 +123,95 @@ function applySort() {
   if ((mode === "popular" || mode === "unpopular") && !currentVideos.some((v) => v.views != null)) return;
   if ((mode === "longest" || mode === "shortest") && !currentVideos.some((v) => durationSeconds(v.duration) != null)) return;
   const byId = new Map([...contentEl.querySelectorAll("a.card[data-vid]")].map((el) => [el.dataset.vid, el]));
+  const ordered = [];
   for (const v of sortVideos(currentVideos, mode)) {
     const el = byId.get(v.id);
-    if (el) contentEl.appendChild(el);
+    if (el) ordered.push(el);
   }
+  placeCards(ordered);
 }
+
+/* ---------- Inline player ---------- */
+
+const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+let inline = null; // { panel, card, id }
+
+function gridColumns() {
+  const cols = getComputedStyle(contentEl).gridTemplateColumns.split(" ").filter(Boolean).length;
+  return Math.max(1, cols || 1);
+}
+
+/** Append cards in order; if a player is open, keep it (never moved, so playback continues) right after its card's row. */
+function placeCards(cards) {
+  if (!inline || !inline.panel.isConnected || !cards.includes(inline.card)) {
+    for (const el of cards) contentEl.appendChild(el);
+    return;
+  }
+  const cols = gridColumns();
+  const rowEnd = Math.ceil((cards.indexOf(inline.card) + 1) / cols) * cols;
+  cards.forEach((el, i) => {
+    if (i < rowEnd) contentEl.insertBefore(el, inline.panel);
+    else contentEl.appendChild(el);
+  });
+}
+
+function closeInline() {
+  if (!inline) return;
+  inline.panel.remove(); // removing the iframe stops playback
+  inline.card.classList.remove("playing");
+  inline.card.removeAttribute("aria-expanded");
+  inline = null;
+}
+
+function openInline(v, card) {
+  const id = String(v.id || "");
+  if (!VIDEO_ID_RE.test(id)) return false;
+  const reopenSame = inline?.id === id && inline.panel.isConnected;
+  closeInline();
+  if (reopenSame) return true; // clicking the playing video again collapses it
+
+  const watchUrl = `https://www.youtube.com/watch?v=${id}`;
+  const frame = h("iframe", {
+    class: "inline-frame",
+    src: `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1`,
+    title: String(v.title || "YouTube video player"),
+    allow: "autoplay; encrypted-media; picture-in-picture; fullscreen; web-share",
+    allowfullscreen: true,
+    referrerpolicy: "strict-origin-when-cross-origin",
+  });
+  const closeBtn = h("button", { type: "button", class: "btn inline-close", "aria-label": "Close player" }, "✕ Close");
+  const panel = h("section", { class: "inline-player", "aria-label": "Video player" },
+    h("div", { class: "inline-head" },
+      h("div", { class: "inline-titles" },
+        h("strong", { class: "inline-title" }, String(v.title || "")),
+        h("span", { class: "inline-channel" }, String(v.author || ""))),
+      h("div", { class: "inline-actions" },
+        h("a", { class: "btn", href: watchUrl, target: "_blank", rel: "noreferrer" }, "Open on YouTube ↗"),
+        closeBtn)),
+    h("div", { class: "inline-frame-wrap" }, frame),
+    h("p", { class: "inline-note" },
+      "Plays in YouTube's embedded player (the video loads from YouTube). Some videos don't allow embedding or need sign-in/age checks — use Open on YouTube for those."));
+  closeBtn.addEventListener("click", () => {
+    const c = inline?.card;
+    closeInline();
+    c?.focus();
+  });
+
+  // Insert after the last card in the clicked card's row (full grid width via CSS).
+  const cards = [...contentEl.querySelectorAll("a.card[data-vid]")];
+  const cols = gridColumns();
+  const rowEnd = Math.min(cards.length, Math.ceil((cards.indexOf(card) + 1) / cols) * cols);
+  cards[rowEnd - 1].after(panel);
+  inline = { panel, card, id };
+  card.classList.add("playing");
+  card.setAttribute("aria-expanded", "true");
+  panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  return true;
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && inline) closeInline();
+});
 sortEl.addEventListener("change", async () => {
   sortPrefs[sortKey()] = sortEl.value;
   await chrome.storage.local.set({ feedSort: sortPrefs });
@@ -215,6 +299,7 @@ function renderTabs() {
     btn.dataset.feedId = id;
     btn.textContent = `${meta.icon} ${meta.name}`;
     btn.addEventListener("click", () => {
+      closeInline();
       state.feedId = id;
       localStorage.setItem("yfn.activeFeed", id);
       state.playlist = null;
@@ -228,6 +313,7 @@ function renderTabs() {
 }
 
 function skeleton(n = 8) {
+  closeInline();
   contentEl.className = "grid skeleton";
   contentEl.replaceChildren();
   for (let i = 0; i < n; i++) {
@@ -265,6 +351,7 @@ function renderVideos(videos) {
     emptyState();
     return;
   }
+  closeInline();
   contentEl.className = "grid";
   contentEl.replaceChildren();
   currentVideos = videos;
@@ -279,10 +366,14 @@ function renderVideos(videos) {
     const a = document.createElement("a");
     a.className = "card";
     a.dataset.vid = v.id;
-    // Plain link: a normal click plays the video in this tab; Ctrl/Cmd-click and middle-click
-    // still open a new tab via the browser's native link handling.
+    // Real link (for Ctrl/Cmd/middle-click and "open in new tab"); a plain click plays inline below this row.
     a.href = safeUrl(v.link) || `https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}`;
     a.rel = "noreferrer";
+    a.addEventListener("click", (e) => {
+      // Plain primary click / Enter plays inline; modified or middle clicks keep native link behavior.
+      if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      if (openInline(v, a)) e.preventDefault();
+    });
     a.append(
       h("div", { class: "card-thumb" },
         h("img", { src: v.thumbnail, alt: "", loading: "lazy" }),

@@ -1,3 +1,4 @@
+import { registerEmbedReferer } from "./shared/embed.js";
 import { getDurations, views as viewCounts } from "./shared/duration.js";
 /**
  * Service worker: open feeds page on action click; message handlers for
@@ -30,6 +31,8 @@ import {
   setPlaylistEnabled, isPlaylistEnabled,
 } from "./shared/playlists.js";
 import { fetchAlgorithmFeed } from "./shared/algorithm.js";
+
+registerEmbedReferer().catch((e) => console.warn("embed referer rule failed", e));
 
 chrome.runtime.onInstalled.addListener(() => {
   ensureInitialized().catch((e) => console.warn("init failed", e));

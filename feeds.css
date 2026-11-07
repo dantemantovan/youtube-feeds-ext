@@ -329,3 +329,34 @@ button {
 .playlist-header strong { font-size: 18px; flex: 1; }
 
 /* Disabled list items in empty states already styled via .empty */
+
+/* Inline player (v1.7.3): spans the full grid width under the clicked card's row */
+.inline-player {
+  grid-column: 1 / -1;
+  background: var(--bg-elev);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px;
+}
+.inline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.inline-titles { display: flex; flex-direction: column; min-width: 0; }
+.inline-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inline-channel { opacity: 0.7; font-size: 0.9em; }
+.inline-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.inline-frame-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  min-height: 270px;
+}
+.inline-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 8px; }
+.inline-note { margin: 8px 0 0; font-size: 0.8em; opacity: 0.65; }
+.card.playing { outline: 2px solid #f00; outline-offset: 2px; }

@@ -11,7 +11,7 @@ No Google API key. Curated feeds use YouTube’s public channel RSS. Algorithm u
 
 ---
 
-## Build (v1.7.2)
+## Build (v1.7.3)
 
 `manifest.json` in the repo is the Chromium manifest. Run `node scripts/build.mjs` (Node 18+, Python 3) to produce:
 
@@ -67,10 +67,18 @@ To update after editing files: on the extensions page, click the refresh icon on
 - Toolbar action → opens **Feeds** (`feeds.html`) with tabs: your curated feeds (built-ins + custom, using your names) · **Algorithm** · Playlists.
 - Focusing the toolbar icon focuses an existing Feeds tab when one is already open (does not navigate your current tab away).
 - Upgrading from an older version: a stored `lore` feed is automatically migrated to `longform` on load (your channels are kept), and a missing `news` feed is filled from starters.
-- Each video card shows thumbnail, duration badge, title, channel, views/time; a normal click plays the video in the **same tab** (v1.7.2); Ctrl/Cmd-click or middle-click opens it in a new tab.
+- Each video card shows thumbnail, duration badge, title, channel, views/time; a normal click (or Enter) opens an **inline player** below that card's row, so you stay in your feed (v1.7.3). Clicking another video moves the player; ✕ Close or Esc stops it, as does switching feeds. Ctrl/Cmd-click or middle-click opens the video on YouTube in a new tab, and the player has an **Open on YouTube** link.
 - Shorts RSS entries (`/shorts/…`) are filtered out.
 - **Hide Shorts** toggle (default ON) is on the Feeds header and in Settings.
 - **Settings** (gear) opens in a new tab → add channels per feed, enable/disable channels and playlists, or **Reset starters**.
+
+### Inline player and privacy (v1.7.3)
+
+The inline player is YouTube's official embedded player (`https://www.youtube.com/embed/VIDEO_ID`), so the video streams from YouTube and YouTube sees that request, just like any embedded video. No data goes to the developer.
+
+Extension pages don't send an HTTP `Referer`, and without one YouTube's embed shows **Error 153**. YouTube's [Required Minimum Functionality](https://developers.google.com/youtube/terms/required-minimum-functionality#set-the-referer) terms tell apps in this situation to identify themselves with `Referer: https://<app id>`. The extension does this with one `declarativeNetRequest` session rule (`declarativeNetRequestWithHostAccess` permission, which only works with the youtube.com access the extension already has). The rule applies only to `www.youtube.com/embed/` frames opened by the extension's own pages. Firefox sends `https://youtube-feeds-ext.dantemantovan/`; Chromium sends `https://youtube-feeds-no-shorts.<extension id>/`.
+
+Some videos still won't play inline: the uploader may have disabled embedding, or the video may need sign-in or an age check. Use **Open on YouTube** for those.
 
 ### Algorithm tab (v1.4.0)
 
