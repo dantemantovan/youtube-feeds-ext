@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Feeds + No Shorts",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Hide YouTube Shorts everywhere and browse curated feeds (Longform, AI Skills, Games, News, plus your own), Home Algorithm recommendations, and Playlists.",
   "permissions": [
     "storage"
@@ -12,9 +12,6 @@
   ],
   "background": {
     "service_worker": "background.js",
-    "scripts": [
-      "background.js"
-    ],
     "type": "module"
   },
   "action": {
@@ -61,16 +58,5 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "youtube-feeds-ext@dantemantovan",
-      "strict_min_version": "128.0",
-      "data_collection_permissions": {
-        "required": [
-          "none"
-        ]
-      }
-    }
   }
 }

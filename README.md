@@ -1,6 +1,6 @@
 # YouTube Feeds + No Shorts
 
-Manifest V3 extension for Chromium browsers (Chrome, Edge, Brave) and **Firefox 128+** that:
+Manifest V3 extension for Chromium browsers (Chrome, Edge, Brave) and **Firefox 140+** that:
 
 1. **Hides YouTube Shorts** everywhere on `youtube.com` (shelves, tab/chip, tiles, related; redirects `/shorts/VIDEO_ID` → `/watch?v=VIDEO_ID`)
 2. Provides **curated feeds** — four built-ins (**Longform**, **AI Skills**, **Games**, **News**) that you can **rename**, plus unlimited **custom feeds** you create — add channels from Settings or via **Add to curated feed** on youtube.com
@@ -11,23 +11,38 @@ No Google API key. Curated feeds use YouTube’s public channel RSS. Algorithm u
 
 ---
 
-## Firefox (v1.7.0)
+## Build (v1.7.1)
 
-The same folder/zip works in Firefox 128 or newer (`background.scripts` is used by Firefox; `background.service_worker` by Chromium).
+`manifest.json` in the repo is the Chromium manifest. Run `node scripts/build.mjs` (Node 18+, Python 3) to produce:
+
+| Output | Use |
+|---|---|
+| `dist/chromium/` and `dist/youtube-feeds-ext-<version>-chromium.zip` | Chrome / Edge / Brave (`background.service_worker`) |
+| `dist/firefox/` and `dist/youtube-feeds-ext-<version>-firefox.zip` | Firefox (`background.scripts`, add-on ID `youtube-feeds-ext@dantemantovan`, `data_collection_permissions: none`) |
+
+Check the Firefox build with `npx web-ext lint -s dist/firefox`.
+
+## Firefox
+
+Requires **Firefox 140 or newer** on desktop (the first version that supports the `data_collection_permissions` declaration). The manifest gives Firefox for Android a minimum of 142, but Android has **not** been tested.
 
 **Temporary install (unsigned, removed when Firefox restarts):**
 
 1. Open `about:debugging#/runtime/this-firefox`.
-2. Click **Load Temporary Add-on…** and select `manifest.json` inside the folder (or the `.zip`).
-3. Click the toolbar icon once. If Firefox asks, **allow access to youtube.com** — Firefox treats MV3 host permissions as user-granted, and feeds, Algorithm, Playlists, Add to curated feed, and the Shorts blocker need it. You can also grant it from `about:addons` → the extension → **Permissions**.
+2. Click **Load Temporary Add-on…** and select `dist/firefox/manifest.json` (or `youtube-feeds-ext-<version>-firefox.zip`).
+3. Click the toolbar icon once. If Firefox asks, **allow access to youtube.com**. Firefox lets users grant or withhold MV3 host permissions, and feeds, Algorithm, Playlists, Add to curated feed, and the Shorts blocker all need youtube.com access. You can also grant it from `about:addons` → the extension → **Permissions**.
 
-**Permanent install:** standard Firefox release only keeps add-ons signed by Mozilla. Sign the zip as an *unlisted* add-on at addons.mozilla.org (or `web-ext sign --channel=unlisted`) and install the returned `.xpi`. Firefox Developer Edition/Nightly can alternatively set `xpinstall.signatures.required` to `false`.
+**Permanent install:** standard Firefox releases only keep add-ons signed by Mozilla. Upload the Firefox zip to addons.mozilla.org as an *unlisted* add-on (or use `web-ext sign --channel=unlisted`), then install the `.xpi` you get back.
 
-Your feeds and playlists are stored per browser; they are not copied from Chromium automatically. Use Settings → Playlists **Import JSON** or re-add channels.
+**Data collection:** declared as `none`. The extension sends no data to the developer or any third party. Its only network requests go to youtube.com to fetch your feeds, Home recommendations, and playlists, using your existing YouTube login in that browser.
+
+Feeds and playlists are stored separately in each browser and are not copied over from Chromium. Use Settings → Playlists **Import JSON**, or re-add your channels.
+
+**Rendering:** pages are built with DOM APIs and `textContent` (`shared/dom.js`). Text from YouTube is never parsed as HTML, and only http(s) or relative URLs are used for links and images.
 
 ---
 
-## Load unpacked (Chrome or Edge on Windows)
+## Load unpacked (Chrome, Edge, or Brave on Windows)
 
 1. Open Chrome or Edge.
 2. Go to `chrome://extensions` (Chrome) or `edge://extensions` (Edge).

@@ -1,3 +1,4 @@
+import { h, setChildren, svgPath, safeUrl } from "./shared/dom.js";
 
 const tabsEl = document.getElementById("tabs");
 const contentEl = document.getElementById("content");
@@ -202,7 +203,7 @@ function tabMeta(id) {
 }
 
 function renderTabs() {
-  tabsEl.innerHTML = "";
+  tabsEl.replaceChildren();
   const ids = [...state.curated.map((f) => f.id), ALGORITHM_ID, PLAYLISTS_ID];
   for (const id of ids) {
     const meta = tabMeta(id);
@@ -228,36 +229,34 @@ function renderTabs() {
 
 function skeleton(n = 8) {
   contentEl.className = "grid skeleton";
-  contentEl.innerHTML = "";
+  contentEl.replaceChildren();
   for (let i = 0; i < n; i++) {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `<div class="card-thumb"></div><div class="card-body"><div class="card-title">&nbsp;</div></div>`;
-    contentEl.appendChild(card);
+    contentEl.appendChild(
+      h("div", { class: "card" }, h("div", { class: "card-thumb" }), h("div", { class: "card-body" }, h("div", { class: "card-title" }, "\u00a0")))
+    );
   }
 }
 
 function emptyState() {
   contentEl.className = "";
-  contentEl.innerHTML = `
-    <div class="empty">
-      <h2>No videos yet</h2>
-      <p>This feed has no channels yet. Add channel URLs or @handles in Settings — the extension ships only a couple of generic examples.</p>
-      <a class="btn btn-primary" href="options.html" target="_blank" rel="noopener">Add channels in Settings</a>
-    </div>`;
+  setChildren(contentEl, h("div", { class: "empty" },
+      h("h2", null, "No videos yet"),
+      h("p", null, "This feed has no channels yet. Add channel URLs or @handles in Settings — the extension ships only a couple of generic examples."),
+      h("a", { class: "btn btn-primary", href: "options.html", target: "_blank", rel: "noopener" }, "Add channels in Settings")));
 }
 
 function algorithmEmpty(res) {
   contentEl.className = "";
   const signedOut = res?.code === "SIGNED_OUT" || res?.signedIn === false;
-  contentEl.innerHTML = `
-    <div class="empty">
-      <h2>${signedOut ? "Sign in to YouTube" : "No recommendations yet"}</h2>
-      <p>${signedOut
+  setChildren(
+    contentEl,
+    h("div", { class: "empty" },
+      h("h2", null, signedOut ? "Sign in to YouTube" : "No recommendations yet"),
+      h("p", null, signedOut
         ? "Open youtube.com in this browser profile and sign in, then come back and Sync / Refresh. Algorithm scrapes your Home feed into cards here — it does not open YouTube Home."
-        : escapeHtml(res?.error || "Couldn't load Home recommendations. Try Refresh.")}</p>
-      <button type="button" class="btn btn-primary" id="algoRetry">↻ Sync / Refresh</button>
-    </div>`;
+        : String(res?.error || "Couldn't load Home recommendations. Try Refresh.")),
+      h("button", { type: "button", class: "btn btn-primary", id: "algoRetry" }, "↻ Sync / Refresh"))
+  );
   contentEl.querySelector("#algoRetry")?.addEventListener("click", () => loadAlgorithm(true));
 }
 
@@ -267,7 +266,7 @@ function renderVideos(videos) {
     return;
   }
   contentEl.className = "grid";
-  contentEl.innerHTML = "";
+  contentEl.replaceChildren();
   currentVideos = videos;
   updateSortControl();
   const mode = currentSort();
@@ -283,19 +282,17 @@ function renderVideos(videos) {
     a.href = v.link || `https://www.youtube.com/watch?v=${v.id}`;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
-    a.innerHTML = `
-      <div class="card-thumb">
-        <img src="${escapeAttr(v.thumbnail)}" alt="" loading="lazy" />
-        <span class="duration" data-vid="${escapeAttr(v.id)}">${v.duration ? formatDuration(v.duration) : "…"}</span>
-      </div>
-      <div class="card-body">
-        <h3 class="card-title">${escapeHtml(v.title)}</h3>
-        <div class="card-meta">
-          <span>${escapeHtml(v.author || "")}</span>
-          <span class="views" data-vid="${escapeAttr(v.id)}">${escapeHtml(formatViews(v.views))}</span>
-          <span>${escapeHtml(formatCardPublished(v))}</span>
-        </div>
-      </div>`;
+    a.append(
+      h("div", { class: "card-thumb" },
+        h("img", { src: v.thumbnail, alt: "", loading: "lazy" }),
+        h("span", { class: "duration", dataset: { vid: String(v.id ?? "") } }, v.duration ? formatDuration(v.duration) : "…")),
+      h("div", { class: "card-body" },
+        h("h3", { class: "card-title" }, String(v.title ?? "")),
+        h("div", { class: "card-meta" },
+          h("span", null, String(v.author || "")),
+          h("span", { class: "views", dataset: { vid: String(v.id ?? "") } }, String(formatViews(v.views) ?? "")),
+          h("span", null, String(formatCardPublished(v) ?? ""))))
+    );
     contentEl.appendChild(a);
   }
   loadDurations(videos.filter((v) => !v.duration || v.views == null).map((v) => v.id));
@@ -351,16 +348,6 @@ async function loadDurations(ids) {
   }
 }
 
-function escapeHtml(s) {
-  return String(s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-function escapeAttr(s) {
-  return escapeHtml(s).replace(/'/g, "&#39;");
-}
 
 async function loadFeed() {
   if (state.loading) return;
@@ -383,12 +370,10 @@ async function loadFeed() {
   if (res.allDisabled) {
     statusEl.textContent = "";
     contentEl.className = "";
-    contentEl.innerHTML = `
-      <div class="empty">
-        <h2>All channels disabled</h2>
-        <p>Enable at least one channel for this feed in Settings.</p>
-        <a class="btn btn-primary" href="options.html" target="_blank" rel="noopener">Open Settings</a>
-      </div>`;
+    setChildren(contentEl, h("div", { class: "empty" },
+      h("h2", null, "All channels disabled"),
+      h("p", null, "Enable at least one channel for this feed in Settings."),
+      h("a", { class: "btn btn-primary", href: "options.html", target: "_blank", rel: "noopener" }, "Open Settings")));
     return;
   }
 
@@ -410,9 +395,12 @@ async function loadFeed() {
   if (res.errors?.length) {
     errorsEl.hidden = false;
     errorsEl.className = "errors";
-    errorsEl.innerHTML = `<details open><summary>${res.errors.length} channel(s) failed</summary><ul>${res.errors
-      .map((e) => `<li><strong>${escapeHtml(e.channel)}</strong>: ${escapeHtml(e.error)}</li>`)
-      .join("")}</ul></details>`;
+    setChildren(
+      errorsEl,
+      h("details", { open: true },
+        h("summary", null, `${res.errors.length} channel(s) failed`),
+        h("ul", null, res.errors.map((e) => h("li", null, h("strong", null, String(e.channel ?? "")), ": ", String(e.error ?? "")))))
+    );
   }
 }
 
@@ -445,7 +433,7 @@ async function loadAlgorithm(force = false) {
   if (res.warning) {
     errorsEl.hidden = false;
     errorsEl.className = "errors";
-    errorsEl.innerHTML = `<details open><summary>Using cached results</summary><p>${escapeHtml(res.warning)}</p></details>`;
+    setChildren(errorsEl, h("details", { open: true }, h("summary", null, "Using cached results"), h("p", null, String(res.warning))));
   }
 }
 
@@ -471,12 +459,10 @@ function loadCurrent() {
 
 function playlistEmpty() {
   contentEl.className = "";
-  contentEl.innerHTML = `
-    <div class="empty">
-      <h2>Playlists load after sync</h2>
-      <p>No playlists stored yet. In Settings you can sync from YouTube (uses your browser's YouTube login), paste a playlist URL, or import a JSON list.</p>
-      <a class="btn btn-primary" href="options.html#playlists" target="_blank" rel="noopener">Manage playlists in Settings</a>
-    </div>`;
+  setChildren(contentEl, h("div", { class: "empty" },
+      h("h2", null, "Playlists load after sync"),
+      h("p", null, "No playlists stored yet. In Settings you can sync from YouTube (uses your browser's YouTube login), paste a playlist URL, or import a JSON list."),
+      h("a", { class: "btn btn-primary", href: "options.html#playlists", target: "_blank", rel: "noopener" }, "Manage playlists in Settings")));
 }
 
 function formatVideoCount(n) {
@@ -507,47 +493,35 @@ async function loadPlaylists(force = false) {
   if (!list.length) {
     if (all.length) {
       contentEl.className = "";
-      contentEl.innerHTML = `
-        <div class="empty">
-          <h2>All playlists disabled</h2>
-          <p>Enable playlists in Settings to browse them here.</p>
-          <a class="btn btn-primary" href="options.html#playlists" target="_blank" rel="noopener">Open Settings</a>
-        </div>`;
+      setChildren(contentEl, h("div", { class: "empty" },
+      h("h2", null, "All playlists disabled"),
+      h("p", null, "Enable playlists in Settings to browse them here."),
+      h("a", { class: "btn btn-primary", href: "options.html#playlists", target: "_blank", rel: "noopener" }, "Open Settings")));
       return;
     }
     return playlistEmpty();
   }
   contentEl.className = "grid playlist-grid";
-  contentEl.innerHTML = "";
+  contentEl.replaceChildren();
   for (const p of list) {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "card playlist-card";
     const thumbUrl = p.thumbnail || "";
     const countLabel = formatVideoCount(p.videoCount) || "Playlist";
-    card.innerHTML = `
-      <div class="card-thumb pl-thumb">
-        <div class="pl-stack" aria-hidden="true">
-          <span class="pl-stack-layer"></span>
-          <span class="pl-stack-layer"></span>
-        </div>
-        ${
-          thumbUrl
-            ? `<img src="${escapeAttr(thumbUrl)}" alt="" loading="lazy" />`
-            : `<div class="pl-placeholder">📂</div>`
-        }
-        <div class="pl-count-badge">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M22 7H2v1h20V7zm-9 5H2v1h11v-1zm0 5H2v1h11v-1zm7-5v7l5-3.5L20 12z"/></svg>
-          <span>${escapeHtml(countLabel)}</span>
-        </div>
-      </div>
-      <div class="card-body">
-        <h3 class="card-title">${escapeHtml(p.name)}</h3>
-        <div class="card-meta">
-          <span>View full playlist</span>
-          ${p.source && p.source !== "manual" ? `<span class="pl-privacy">${escapeHtml(p.source)}</span>` : ""}
-        </div>
-      </div>`;
+    card.append(
+      h("div", { class: "card-thumb pl-thumb" },
+        h("div", { class: "pl-stack", "aria-hidden": "true" }, h("span", { class: "pl-stack-layer" }), h("span", { class: "pl-stack-layer" })),
+        thumbUrl ? h("img", { src: thumbUrl, alt: "", loading: "lazy" }) : h("div", { class: "pl-placeholder" }, "📂"),
+        h("div", { class: "pl-count-badge" },
+          svgPath("M22 7H2v1h20V7zm-9 5H2v1h11v-1zm0 5H2v1h11v-1zm7-5v7l5-3.5L20 12z"),
+          h("span", null, String(countLabel)))),
+      h("div", { class: "card-body" },
+        h("h3", { class: "card-title" }, String(p.name ?? "")),
+        h("div", { class: "card-meta" },
+          h("span", null, "View full playlist"),
+          p.source && p.source !== "manual" ? h("span", { class: "pl-privacy" }, String(p.source)) : null))
+    );
     card.addEventListener("click", () => openPlaylist(p));
     contentEl.appendChild(card);
   }
@@ -565,10 +539,11 @@ async function openPlaylist(p) {
 
   const header = document.createElement("div");
   header.className = "playlist-header";
-  header.innerHTML = `
-    <button type="button" class="btn" id="plBack">← All playlists</button>
-    <strong>${escapeHtml(p.name || res.title || "Playlist")}</strong>
-    <a class="btn" href="${escapeAttr(p.url || `https://www.youtube.com/playlist?list=${p.playlistId}`)}" target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a>`;
+  header.append(
+    h("button", { type: "button", class: "btn", id: "plBack" }, "← All playlists"),
+    h("strong", null, String(p.name || res.title || "Playlist")),
+    h("a", { class: "btn", href: safeUrl(p.url) || `https://www.youtube.com/playlist?list=${encodeURIComponent(p.playlistId)}`, target: "_blank", rel: "noopener noreferrer" }, "Open on YouTube ↗")
+  );
   header.querySelector("#plBack").addEventListener("click", () => {
     state.playlist = null;
     loadPlaylists();
@@ -576,7 +551,7 @@ async function openPlaylist(p) {
 
   if (!res.ok) {
     contentEl.className = "";
-    contentEl.innerHTML = `<div class="empty"><h2>Couldn't load this playlist</h2><p>${escapeHtml(res.error)}</p></div>`;
+    setChildren(contentEl, h("div", { class: "empty" }, h("h2", null, "Couldn't load this playlist"), h("p", null, String(res.error ?? ""))));
     contentEl.prepend(header);
     statusEl.textContent = "";
     return;
@@ -585,7 +560,7 @@ async function openPlaylist(p) {
   const videos = res.videos || [];
   if (!videos.length) {
     contentEl.className = "";
-    contentEl.innerHTML = `<div class="empty"><h2>No public videos in RSS</h2><p>Private/auto playlists (Liked, Watch later) or empty playlists don't expose a feed. Open it on YouTube instead.</p></div>`;
+    setChildren(contentEl, h("div", { class: "empty" }, h("h2", null, "No public videos in RSS"), h("p", null, "Private/auto playlists (Liked, Watch later) or empty playlists don't expose a feed. Open it on YouTube instead.")));
     contentEl.prepend(header);
     statusEl.textContent = "";
     currentVideos = [];
