@@ -279,9 +279,10 @@ function renderVideos(videos) {
     const a = document.createElement("a");
     a.className = "card";
     a.dataset.vid = v.id;
-    a.href = v.link || `https://www.youtube.com/watch?v=${v.id}`;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
+    // Plain link: a normal click plays the video in this tab; Ctrl/Cmd-click and middle-click
+    // still open a new tab via the browser's native link handling.
+    a.href = safeUrl(v.link) || `https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}`;
+    a.rel = "noreferrer";
     a.append(
       h("div", { class: "card-thumb" },
         h("img", { src: v.thumbnail, alt: "", loading: "lazy" }),

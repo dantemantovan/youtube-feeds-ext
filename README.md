@@ -11,7 +11,7 @@ No Google API key. Curated feeds use YouTube’s public channel RSS. Algorithm u
 
 ---
 
-## Build (v1.7.1)
+## Build (v1.7.2)
 
 `manifest.json` in the repo is the Chromium manifest. Run `node scripts/build.mjs` (Node 18+, Python 3) to produce:
 
@@ -67,7 +67,7 @@ To update after editing files: on the extensions page, click the refresh icon on
 - Toolbar action → opens **Feeds** (`feeds.html`) with tabs: your curated feeds (built-ins + custom, using your names) · **Algorithm** · Playlists.
 - Focusing the toolbar icon focuses an existing Feeds tab when one is already open (does not navigate your current tab away).
 - Upgrading from an older version: a stored `lore` feed is automatically migrated to `longform` on load (your channels are kept), and a missing `news` feed is filled from starters.
-- Each video card shows thumbnail, duration badge, title, channel, views/time; click opens YouTube in a **new tab**.
+- Each video card shows thumbnail, duration badge, title, channel, views/time; a normal click plays the video in the **same tab** (v1.7.2); Ctrl/Cmd-click or middle-click opens it in a new tab.
 - Shorts RSS entries (`/shorts/…`) are filtered out.
 - **Hide Shorts** toggle (default ON) is on the Feeds header and in Settings.
 - **Settings** (gear) opens in a new tab → add channels per feed, enable/disable channels and playlists, or **Reset starters**.

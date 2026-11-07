@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Feeds + No Shorts",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "Hide YouTube Shorts everywhere and browse curated feeds (Longform, AI Skills, Games, News, plus your own), Home Algorithm recommendations, and Playlists.",
   "permissions": [
     "storage"
