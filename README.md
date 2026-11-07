@@ -11,7 +11,7 @@ No Google API key. Curated feeds use YouTube’s public channel RSS. Algorithm u
 
 ---
 
-## Build (v1.7.4)
+## Build (v1.7.5)
 
 `manifest.json` in the repo is the Chromium manifest. Run `node scripts/build.mjs` (Node 18+, Python 3) to produce:
 
@@ -67,18 +67,20 @@ To update after editing files: on the extensions page, click the refresh icon on
 - Toolbar action → opens **Feeds** (`feeds.html`) with tabs: your curated feeds (built-ins + custom, using your names) · **Algorithm** · Playlists.
 - Focusing the toolbar icon focuses an existing Feeds tab when one is already open (does not navigate your current tab away).
 - Upgrading from an older version: a stored `lore` feed is automatically migrated to `longform` on load (your channels are kept), and a missing `news` feed is filled from starters.
-- Each video card shows thumbnail, duration badge, title, channel, views/time; a normal click (or Enter) opens an **inline player** below that card's row, so you stay in your feed (v1.7.4). Clicking another video moves the player; ✕ Close or Esc stops it, as does switching feeds. Ctrl/Cmd-click or middle-click opens the video on YouTube in a new tab, and the player has an **Open on YouTube** link.
+- Each video card shows thumbnail, duration badge, title, channel, views/time; a normal click (or Enter) opens an **inline player** below that card's row, so you stay in your feed (v1.7.5). Clicking another video moves the player; ✕ Close or Esc stops it, as does switching feeds. Ctrl/Cmd-click or middle-click opens the video on YouTube in a new tab, and the player has an **Open on YouTube** link.
 - Shorts RSS entries (`/shorts/…`) are filtered out.
 - **Hide Shorts** toggle (default ON) is on the Feeds header and in Settings.
 - **Settings** (gear) opens in a new tab → add channels per feed, enable/disable channels and playlists, or **Reset starters**.
 
-### Inline player and privacy (v1.7.4)
+### Inline player and privacy (v1.7.5)
 
-The inline player is YouTube's official embedded player (`https://www.youtube.com/embed/VIDEO_ID`), so the video streams from YouTube and YouTube sees that request, just like any embedded video. No data goes to the developer.
+The inline player is YouTube's official privacy-enhanced embedded player (`https://www.youtube-nocookie.com/embed/VIDEO_ID`), so the video streams from YouTube and YouTube sees that request, just like any embedded video. No data goes to the developer.
 
-Extension pages don't send an HTTP `Referer`, and without one YouTube's embed shows **Error 153**. YouTube's [Required Minimum Functionality](https://developers.google.com/youtube/terms/required-minimum-functionality#set-the-referer) terms tell apps in this situation to identify themselves with `Referer: https://<app id>`. The extension does this with one `declarativeNetRequest` session rule (`declarativeNetRequestWithHostAccess` permission, which only works with the youtube.com access the extension already has). The rule applies only to `www.youtube.com/embed/` frames opened by the extension's own pages. Firefox sends `https://youtube-feeds-ext.dantemantovan/`; Chromium sends `https://youtube-feeds-no-shorts.<extension id>/`.
+Extension pages don't send an HTTP `Referer`, and without one YouTube's embed shows **Error 153**. YouTube's [Required Minimum Functionality](https://developers.google.com/youtube/terms/required-minimum-functionality#set-the-referer) terms tell apps in this situation to identify themselves with `Referer: https://<app id>`. The extension does this with one `declarativeNetRequest` session rule (`declarativeNetRequestWithHostAccess` permission, which only works with the youtube.com access the extension already has). The rule applies only to `www.youtube-nocookie.com/embed/` frames opened by the extension's own pages.
 
-Before adding the player, v1.7.4 checks that youtube.com access is granted and the identification rule is active. If access is missing, the player shows **Allow youtube.com access** and does not load (otherwise YouTube would show error 153). Under each player, **Player diagnostics** shows the version, access, rule state and Referer value; include it when reporting a problem.
+Why youtube-nocookie.com (v1.7.5): if you've used youtube.com, YouTube's service worker is registered for it. It intercepts `www.youtube.com/embed/` frames and re-requests them itself without the Referer, so YouTube shows error 153 even though the rule is active. The privacy-enhanced host isn't affected. Upgrading from an earlier version, Firefox may not have granted the new `www.youtube-nocookie.com` access yet; the player then shows **Allow YouTube player access**. Click it once. Firefox sends `https://youtube-feeds-ext.dantemantovan/`; Chromium sends `https://youtube-feeds-no-shorts.<extension id>/`.
+
+Before adding the player, v1.7.5 checks that www.youtube-nocookie.com access is granted and the identification rule is active. If access is missing, the player shows **Allow YouTube player access** and does not load (otherwise YouTube would show error 153). Under each player, **Player diagnostics** shows the version, access, rule state and Referer value; include it when reporting a problem.
 
 Some videos still won't play inline: the uploader may have disabled embedding, or the video may need sign-in or an age check. Use **Open on YouTube** for those.
 

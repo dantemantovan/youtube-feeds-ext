@@ -4,8 +4,13 @@
  * Extension pages (moz-extension:// / chrome-extension://) send no HTTP Referer, and YouTube's embedded player
  * refuses to play without one (error 153). YouTube's Required Minimum Functionality terms say that clients in
  * such environments must identify themselves by setting Referer to https://<app id>. This registers one
- * session rule that sets that identifying Referer ONLY on www.youtube.com/embed/ sub-frame requests made by
- * this extension's own pages. No other requests are touched.
+ * session rule that sets that identifying Referer ONLY on www.youtube-nocookie.com/embed/ sub-frame requests made
+ * by this extension's own pages. No other requests are touched.
+ *
+ * Why youtube-nocookie.com: anyone who uses youtube.com has YouTube's service worker registered for it. That
+ * worker intercepts www.youtube.com/embed/ frame loads and re-fetches them itself, so the request YouTube
+ * receives is the worker's (initiator youtube.com, no Referer) and the rule never applies -> error 153.
+ * The privacy-enhanced embed host has no such worker from normal browsing.
  */
 const RULE_ID = 1730;
 
@@ -28,7 +33,7 @@ export async function registerEmbedReferer() {
         id: RULE_ID,
         priority: 1,
         condition: {
-          urlFilter: "|https://www.youtube.com/embed/",
+          urlFilter: "|https://www.youtube-nocookie.com/embed/",
           resourceTypes: ["sub_frame"],
           initiatorDomains: [extHost],
         },
@@ -42,7 +47,8 @@ export async function registerEmbedReferer() {
   return true;
 }
 
-const YT_EMBED_ORIGINS = { origins: ["https://www.youtube.com/*"] };
+export const EMBED_HOST = "www.youtube-nocookie.com";
+const YT_EMBED_ORIGINS = { origins: ["https://www.youtube-nocookie.com/*"] };
 
 /**
  * Make sure the rule is installed (awaited) and report what the player needs, for the inline player's
@@ -73,7 +79,7 @@ export async function prepareEmbed() {
   try {
     if (chrome.declarativeNetRequest.testMatchOutcome) {
       const res = await chrome.declarativeNetRequest.testMatchOutcome({
-        url: "https://www.youtube.com/embed/M7lc1UVf-VE",
+        url: "https://www.youtube-nocookie.com/embed/M7lc1UVf-VE",
         type: "sub_frame",
         initiator: new URL(chrome.runtime.getURL("/")).origin,
       });

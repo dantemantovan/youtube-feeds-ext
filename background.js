@@ -44,7 +44,7 @@ chrome.runtime.onStartup.addListener(() => {
 
 // Action button opens the feeds UI (full page, not popup)
 // Never navigates the current tab: focus an existing Feeds tab, else open a new one beside it.
-const YT_ORIGINS = { origins: ["https://www.youtube.com/*", "https://youtube.com/*"] };
+const YT_ORIGINS = { origins: ["https://www.youtube.com/*", "https://youtube.com/*", "https://www.youtube-nocookie.com/*"] };
 
 chrome.action.onClicked.addListener(async (tab) => {
   // Firefox treats MV3 host permissions as user-grantable/optional. Request them from this

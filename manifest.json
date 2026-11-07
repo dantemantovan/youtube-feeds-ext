@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Feeds + No Shorts",
-  "version": "1.7.4",
+  "version": "1.7.5",
   "description": "Hide YouTube Shorts everywhere and browse curated feeds (Longform, AI Skills, Games, News, plus your own), Home Algorithm recommendations, and Playlists.",
   "permissions": [
     "storage",
@@ -9,7 +9,8 @@
   ],
   "host_permissions": [
     "https://www.youtube.com/*",
-    "https://youtube.com/*"
+    "https://youtube.com/*",
+    "https://www.youtube-nocookie.com/*"
   ],
   "background": {
     "service_worker": "background.js",

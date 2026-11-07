@@ -173,7 +173,7 @@ function openInline(v, card) {
   const watchUrl = `https://www.youtube.com/watch?v=${id}`;
   const makeFrame = () => h("iframe", {
     class: "inline-frame",
-    src: `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1`,
+    src: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1`,
     title: String(v.title || "YouTube video player"),
     allow: "autoplay; encrypted-media; picture-in-picture; fullscreen; web-share",
     allowfullscreen: true,
@@ -211,7 +211,7 @@ function openInline(v, card) {
   return true;
 }
 
-const YT_EMBED_ORIGINS = { origins: ["https://www.youtube.com/*", "https://youtube.com/*"] };
+const YT_EMBED_ORIGINS = { origins: ["https://www.youtube.com/*", "https://youtube.com/*", "https://www.youtube-nocookie.com/*"] };
 
 /** Only insert the iframe once host access and the identifying-Referer rule are confirmed (avoids error 153). */
 async function preparePlayer(entry, makeFrame) {
@@ -220,7 +220,7 @@ async function preparePlayer(entry, makeFrame) {
   const res = await send({ type: "PREPARE_EMBED" });
   if (inline !== entry) return; // closed or replaced meanwhile
   diag.textContent =
-    `v${res.version || "?"} · YouTube access: ${res.hostAccess ? "granted" : "NOT granted"} · ` +
+    `v${res.version || "?"} · player host access: ${res.hostAccess ? "granted" : "NOT granted"} · ` +
     `player rule: ${res.rule ? "active" : "missing"}` +
     (res.matched == null ? "" : ` · rule test: ${res.matched ? "matches" : "no match"}`) +
     ` · Referer: ${res.referer || "?"}` +
@@ -230,11 +230,11 @@ async function preparePlayer(entry, makeFrame) {
     return;
   }
   const msg = !res.hostAccess
-    ? "The inline player needs access to youtube.com, which the browser hasn't granted. Allow it, or use Open on YouTube."
+    ? "The inline player needs access to www.youtube-nocookie.com (YouTube's privacy-enhanced player), which the browser hasn't granted. Allow it, or use Open on YouTube."
     : "The player's YouTube identification rule couldn't be installed, so YouTube would show error 153. Use Open on YouTube, and see Player diagnostics.";
   const children = [h("p", null, msg)];
   if (!res.hostAccess) {
-    const allow = h("button", { type: "button", class: "btn btn-primary" }, "Allow youtube.com access");
+    const allow = h("button", { type: "button", class: "btn btn-primary" }, "Allow YouTube player access");
     allow.addEventListener("click", () => {
       // Called directly in the click (user gesture), before any await.
       chrome.permissions.request(YT_EMBED_ORIGINS).then((granted) => {
