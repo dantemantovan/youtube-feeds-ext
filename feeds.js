@@ -254,7 +254,7 @@ function algorithmEmpty(res) {
     <div class="empty">
       <h2>${signedOut ? "Sign in to YouTube" : "No recommendations yet"}</h2>
       <p>${signedOut
-        ? "Open youtube.com in this Chrome profile and sign in, then come back and Sync / Refresh. Algorithm scrapes your Home feed into cards here — it does not open YouTube Home."
+        ? "Open youtube.com in this browser profile and sign in, then come back and Sync / Refresh. Algorithm scrapes your Home feed into cards here — it does not open YouTube Home."
         : escapeHtml(res?.error || "Couldn't load Home recommendations. Try Refresh.")}</p>
       <button type="button" class="btn btn-primary" id="algoRetry">↻ Sync / Refresh</button>
     </div>`;

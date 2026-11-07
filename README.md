@@ -1,6 +1,6 @@
 # YouTube Feeds + No Shorts
 
-Manifest V3 Chrome / Edge extension that:
+Manifest V3 extension for Chromium browsers (Chrome, Edge, Brave) and **Firefox 128+** that:
 
 1. **Hides YouTube Shorts** everywhere on `youtube.com` (shelves, tab/chip, tiles, related; redirects `/shorts/VIDEO_ID` → `/watch?v=VIDEO_ID`)
 2. Provides **curated feeds** — four built-ins (**Longform**, **AI Skills**, **Games**, **News**) that you can **rename**, plus unlimited **custom feeds** you create — add channels from Settings or via **Add to curated feed** on youtube.com
@@ -8,6 +8,22 @@ Manifest V3 Chrome / Edge extension that:
 4. Shows **Playlists** with YouTube-like playlist cards and the same video cards as other feeds
 
 No Google API key. Curated feeds use YouTube’s public channel RSS. Algorithm uses a Home page scrape with your browser cookies. No analytics, no remote code.
+
+---
+
+## Firefox (v1.7.0)
+
+The same folder/zip works in Firefox 128 or newer (`background.scripts` is used by Firefox; `background.service_worker` by Chromium).
+
+**Temporary install (unsigned, removed when Firefox restarts):**
+
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on…** and select `manifest.json` inside the folder (or the `.zip`).
+3. Click the toolbar icon once. If Firefox asks, **allow access to youtube.com** — Firefox treats MV3 host permissions as user-granted, and feeds, Algorithm, Playlists, Add to curated feed, and the Shorts blocker need it. You can also grant it from `about:addons` → the extension → **Permissions**.
+
+**Permanent install:** standard Firefox release only keeps add-ons signed by Mozilla. Sign the zip as an *unlisted* add-on at addons.mozilla.org (or `web-ext sign --channel=unlisted`) and install the returned `.xpi`. Firefox Developer Edition/Nightly can alternatively set `xpinstall.signatures.required` to `false`.
+
+Your feeds and playlists are stored per browser; they are not copied from Chromium automatically. Use Settings → Playlists **Import JSON** or re-add channels.
 
 ---
 
@@ -45,7 +61,7 @@ To update after editing files: on the extensions page, click the refresh icon on
 
 **Algorithm** approximates YouTube Home recommendations **inside the Feeds UI**:
 
-1. The extension fetches `https://www.youtube.com/` with cookies from this Chrome profile.
+1. The extension fetches `https://www.youtube.com/` with cookies from this browser profile.
 2. It parses Home rich-grid / lockup video renderers (`videoId`, title, channel, thumb, length, view count when present).
 3. Results render as the **same cards** as other feeds. It does **not** navigate to or embed YouTube Home.
 4. Last scrape is cached briefly in `chrome.storage.local` (~5 minutes). **↻ Refresh** forces a new scrape.
