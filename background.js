@@ -1,3 +1,4 @@
+import { registerEmbedReferer, prepareEmbed } from "./shared/embed.js";
 import { getDurations, views as viewCounts } from "./shared/duration.js";
 /**
  * Service worker: open feeds page on action click; message handlers for
@@ -31,6 +32,8 @@ import {
 } from "./shared/playlists.js";
 import { fetchAlgorithmFeed } from "./shared/algorithm.js";
 
+registerEmbedReferer().catch((e) => console.warn("embed referer rule failed", e));
+
 chrome.runtime.onInstalled.addListener(() => {
   ensureInitialized().catch((e) => console.warn("init failed", e));
 });
@@ -41,14 +44,32 @@ chrome.runtime.onStartup.addListener(() => {
 
 // Action button opens the feeds UI (full page, not popup)
 // Never navigates the current tab: focus an existing Feeds tab, else open a new one beside it.
+const YT_ORIGINS = { origins: ["https://www.youtube.com/*", "https://youtube.com/*", "https://www.youtube-nocookie.com/*"] };
+
 chrome.action.onClicked.addListener(async (tab) => {
+  // Firefox treats MV3 host permissions as user-grantable/optional. Request them from this
+  // user gesture (must be called before any await) so feeds, Algorithm, and Playlists can fetch.
+  try {
+    if (chrome.permissions?.request) chrome.permissions.request(YT_ORIGINS).catch(() => {});
+  } catch (_) {}
   const url = chrome.runtime.getURL("feeds.html");
   let existing = null;
   try {
-    // getContexts finds our own feeds tab without needing the "tabs" permission
+    // getContexts finds our own feeds tab without needing the "tabs" permission (Chromium)
     const ctx = await chrome.runtime.getContexts({ contextTypes: ["TAB"], documentUrls: [url] });
     if (ctx[0]?.tabId > 0) existing = { id: ctx[0].tabId, windowId: ctx[0].windowId };
   } catch (_) {}
+  if (!existing) {
+    // Firefox fallback: background is an event page, so extension tab views are reachable.
+    try {
+      const views = chrome.extension?.getViews?.({ type: "tab" }) || [];
+      for (const v of views) {
+        if (!v.location.href.startsWith(url)) continue;
+        const t = await v.chrome.tabs.getCurrent();
+        if (t?.id) { existing = { id: t.id, windowId: t.windowId }; break; }
+      }
+    } catch (_) {}
+  }
   if (existing?.id) {
     await chrome.tabs.update(existing.id, { active: true });
     if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true });
@@ -231,6 +252,8 @@ async function handleMessage(msg) {
     case "FETCH_ALGORITHM": {
       return fetchAlgorithmFeed({ force: !!msg.force });
     }
+    case "PREPARE_EMBED":
+      return prepareEmbed();
     case "PING":
       return { ok: true, pong: true };
     default:

@@ -1,6 +1,6 @@
 /**
  * Algorithm feed: approximate YouTube Home recommendations by fetching
- * https://www.youtube.com/ with the extension's cookies (same Chrome profile)
+ * https://www.youtube.com/ with the extension's cookies (same browser profile)
  * and parsing rich-grid / lockup video renderers from ytInitialData.
  * No API key. Results are cached briefly in chrome.storage.local.
  */
@@ -236,7 +236,7 @@ export async function scrapeHomeRecommendations() {
     const err = new Error(
       signedIn
         ? "Couldn't parse Home recommendations (YouTube markup may have changed)."
-        : "Sign in to YouTube in this Chrome profile, then Sync / Refresh."
+        : "Sign in to YouTube in this browser profile, then Sync / Refresh."
     );
     err.code = signedIn ? "PARSE" : "SIGNED_OUT";
     err.signedIn = signedIn;

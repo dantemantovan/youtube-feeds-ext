@@ -8,3 +8,4 @@ youtube-playlists.json
 youtube-subs.json
 personal-feeds.local.json
 *.local.json
+dist/

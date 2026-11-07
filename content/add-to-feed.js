@@ -373,9 +373,14 @@
     btn.setAttribute("aria-haspopup", "menu");
     btn.setAttribute("aria-expanded", "false");
     btn.title = "Add this channel to a curated feed";
-    btn.innerHTML =
-      '<span class="yfn-add-feed-icon" aria-hidden="true">＋</span>' +
-      '<span class="yfn-add-feed-label">Add to curated feed</span>';
+    const btnIcon = document.createElement("span");
+    btnIcon.className = "yfn-add-feed-icon";
+    btnIcon.setAttribute("aria-hidden", "true");
+    btnIcon.textContent = "＋";
+    const btnLabel = document.createElement("span");
+    btnLabel.className = "yfn-add-feed-label";
+    btnLabel.textContent = "Add to curated feed";
+    btn.append(btnIcon, btnLabel);
 
     const menu = document.createElement("div");
     menu.className = "yfn-add-feed-menu";

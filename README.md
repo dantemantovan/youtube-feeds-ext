@@ -1,6 +1,6 @@
 # YouTube Feeds + No Shorts
 
-Manifest V3 Chrome / Edge extension that:
+Manifest V3 extension for Chromium browsers (Chrome, Edge, Brave) and **Firefox 140+** that:
 
 1. **Hides YouTube Shorts** everywhere on `youtube.com` (shelves, tab/chip, tiles, related; redirects `/shorts/VIDEO_ID` → `/watch?v=VIDEO_ID`)
 2. Provides **curated feeds** — four built-ins (**Longform**, **AI Skills**, **Games**, **News**) that you can **rename**, plus unlimited **custom feeds** you create — add channels from Settings or via **Add to curated feed** on youtube.com
@@ -11,7 +11,38 @@ No Google API key. Curated feeds use YouTube’s public channel RSS. Algorithm u
 
 ---
 
-## Load unpacked (Chrome or Edge on Windows)
+## Build (v1.7.5)
+
+`manifest.json` in the repo is the Chromium manifest. Run `node scripts/build.mjs` (Node 18+, Python 3) to produce:
+
+| Output | Use |
+|---|---|
+| `dist/chromium/` and `dist/youtube-feeds-ext-<version>-chromium.zip` | Chrome / Edge / Brave (`background.service_worker`) |
+| `dist/firefox/` and `dist/youtube-feeds-ext-<version>-firefox.zip` | Firefox (`background.scripts`, add-on ID `youtube-feeds-ext@dantemantovan`, `data_collection_permissions: none`) |
+
+Check the Firefox build with `npx web-ext lint -s dist/firefox`.
+
+## Firefox
+
+Requires **Firefox 140 or newer** on desktop (the first version that supports the `data_collection_permissions` declaration). The manifest gives Firefox for Android a minimum of 142, but Android has **not** been tested.
+
+**Temporary install (unsigned, removed when Firefox restarts):**
+
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on…** and select `dist/firefox/manifest.json` (or `youtube-feeds-ext-<version>-firefox.zip`).
+3. Click the toolbar icon once. If Firefox asks, **allow access to youtube.com**. Firefox lets users grant or withhold MV3 host permissions, and feeds, Algorithm, Playlists, Add to curated feed, and the Shorts blocker all need youtube.com access. You can also grant it from `about:addons` → the extension → **Permissions**.
+
+**Permanent install:** standard Firefox releases only keep add-ons signed by Mozilla. Upload the Firefox zip to addons.mozilla.org as an *unlisted* add-on (or use `web-ext sign --channel=unlisted`), then install the `.xpi` you get back.
+
+**Data collection:** declared as `none`. The extension sends no data to the developer or any third party. Its only network requests go to youtube.com to fetch your feeds, Home recommendations, and playlists, using your existing YouTube login in that browser.
+
+Feeds and playlists are stored separately in each browser and are not copied over from Chromium. Use Settings → Playlists **Import JSON**, or re-add your channels.
+
+**Rendering:** pages are built with DOM APIs and `textContent` (`shared/dom.js`). Text from YouTube is never parsed as HTML, and only http(s) or relative URLs are used for links and images.
+
+---
+
+## Load unpacked (Chrome, Edge, or Brave on Windows)
 
 1. Open Chrome or Edge.
 2. Go to `chrome://extensions` (Chrome) or `edge://extensions` (Edge).
@@ -36,16 +67,28 @@ To update after editing files: on the extensions page, click the refresh icon on
 - Toolbar action → opens **Feeds** (`feeds.html`) with tabs: your curated feeds (built-ins + custom, using your names) · **Algorithm** · Playlists.
 - Focusing the toolbar icon focuses an existing Feeds tab when one is already open (does not navigate your current tab away).
 - Upgrading from an older version: a stored `lore` feed is automatically migrated to `longform` on load (your channels are kept), and a missing `news` feed is filled from starters.
-- Each video card shows thumbnail, duration badge, title, channel, views/time; click opens YouTube in a **new tab**.
+- Each video card shows thumbnail, duration badge, title, channel, views/time; a normal click (or Enter) opens an **inline player** below that card's row, so you stay in your feed (v1.7.5). Clicking another video moves the player; ✕ Close or Esc stops it, as does switching feeds. Ctrl/Cmd-click or middle-click opens the video on YouTube in a new tab, and the player has an **Open on YouTube** link.
 - Shorts RSS entries (`/shorts/…`) are filtered out.
 - **Hide Shorts** toggle (default ON) is on the Feeds header and in Settings.
 - **Settings** (gear) opens in a new tab → add channels per feed, enable/disable channels and playlists, or **Reset starters**.
+
+### Inline player and privacy (v1.7.5)
+
+The inline player is YouTube's official privacy-enhanced embedded player (`https://www.youtube-nocookie.com/embed/VIDEO_ID`), so the video streams from YouTube and YouTube sees that request, just like any embedded video. No data goes to the developer.
+
+Extension pages don't send an HTTP `Referer`, and without one YouTube's embed shows **Error 153**. YouTube's [Required Minimum Functionality](https://developers.google.com/youtube/terms/required-minimum-functionality#set-the-referer) terms tell apps in this situation to identify themselves with `Referer: https://<app id>`. The extension does this with one `declarativeNetRequest` session rule (`declarativeNetRequestWithHostAccess` permission, which only works with the youtube.com access the extension already has). The rule applies only to `www.youtube-nocookie.com/embed/` frames opened by the extension's own pages.
+
+Why youtube-nocookie.com (v1.7.5): if you've used youtube.com, YouTube's service worker is registered for it. It intercepts `www.youtube.com/embed/` frames and re-requests them itself without the Referer, so YouTube shows error 153 even though the rule is active. The privacy-enhanced host isn't affected. Upgrading from an earlier version, Firefox may not have granted the new `www.youtube-nocookie.com` access yet; the player then shows **Allow YouTube player access**. Click it once. Firefox sends `https://youtube-feeds-ext.dantemantovan/`; Chromium sends `https://youtube-feeds-no-shorts.<extension id>/`.
+
+Before adding the player, v1.7.5 checks that www.youtube-nocookie.com access is granted and the identification rule is active. If access is missing, the player shows **Allow YouTube player access** and does not load (otherwise YouTube would show error 153). Under each player, **Player diagnostics** shows the version, access, rule state and Referer value; include it when reporting a problem.
+
+Some videos still won't play inline: the uploader may have disabled embedding, or the video may need sign-in or an age check. Use **Open on YouTube** for those.
 
 ### Algorithm tab (v1.4.0)
 
 **Algorithm** approximates YouTube Home recommendations **inside the Feeds UI**:
 
-1. The extension fetches `https://www.youtube.com/` with cookies from this Chrome profile.
+1. The extension fetches `https://www.youtube.com/` with cookies from this browser profile.
 2. It parses Home rich-grid / lockup video renderers (`videoId`, title, channel, thumb, length, view count when present).
 3. Results render as the **same cards** as other feeds. It does **not** navigate to or embed YouTube Home.
 4. Last scrape is cached briefly in `chrome.storage.local` (~5 minutes). **↻ Refresh** forces a new scrape.

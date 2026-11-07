@@ -1,3 +1,4 @@
+import { h, setChildren } from "./shared/dom.js";
 const feedTabs = document.getElementById("feedTabs");
 const channelList = document.getElementById("channelList");
 const addForm = document.getElementById("addForm");
@@ -48,7 +49,7 @@ function currentFeed() {
 }
 
 function renderTabs() {
-  feedTabs.innerHTML = "";
+  feedTabs.replaceChildren();
   for (const meta of state.feeds) {
     const id = meta.id;
     const btn = document.createElement("button");
@@ -109,13 +110,6 @@ deleteFeedBtn.addEventListener("click", async () => {
   refreshFeeds();
 });
 
-function escapeHtml(s) {
-  return String(s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 function makeEnableToggle(enabled, onChange) {
   const wrap = document.createElement("label");
@@ -142,20 +136,20 @@ function makeEnableToggle(enabled, onChange) {
 async function loadChannels() {
   const res = await send({ type: "GET_FEED_CHANNELS", feedId: state.feedId });
   const channels = res.channels || [];
-  channelList.innerHTML = "";
+  channelList.replaceChildren();
   if (!channels.length) {
-    channelList.innerHTML = `<li class="channel-item"><div class="meta"><span class="name">No channels yet</span><span class="id">Add one above — or Reset starters</span></div></li>`;
+    setChildren(channelList, h("li", { class: "channel-item" }, h("div", { class: "meta" }, h("span", { class: "name" }, "No channels yet"), h("span", { class: "id" }, "Add one above — or Reset starters"))));
     return;
   }
   channels.forEach((ch, index) => {
     const enabled = ch.enabled !== false;
     const li = document.createElement("li");
     li.className = "channel-item" + (enabled ? "" : " disabled");
-    li.innerHTML = `
-      <div class="meta">
-        <span class="name">${escapeHtml(ch.name || ch.handle || "Channel")}</span>
-        <span class="id">${escapeHtml(ch.handle || ch.url || "")}${ch.channelId ? " · " + escapeHtml(ch.channelId) : ""}</span>
-      </div>`;
+    li.appendChild(
+      h("div", { class: "meta" },
+        h("span", { class: "name" }, String(ch.name || ch.handle || "Channel")),
+        h("span", { class: "id" }, String(ch.handle || ch.url || "") + (ch.channelId ? " · " + ch.channelId : "")))
+    );
     const actions = document.createElement("div");
     actions.className = "item-actions";
     actions.appendChild(
@@ -234,16 +228,20 @@ function setPlMsg(t, kind = "") {
   plMsg.className = "msg" + (kind ? " " + kind : "");
 }
 function renderPlaylists(list) {
-  plList.innerHTML = "";
+  plList.replaceChildren();
   if (!list?.length) {
-    plList.innerHTML = `<li class="channel-item"><div class="meta"><span class="name">No playlists yet</span><span class="id">Sync, add, or import above</span></div></li>`;
+    setChildren(plList, h("li", { class: "channel-item" }, h("div", { class: "meta" }, h("span", { class: "name" }, "No playlists yet"), h("span", { class: "id" }, "Sync, add, or import above"))));
     return;
   }
   for (const p of list) {
     const enabled = p.enabled !== false;
     const li = document.createElement("li");
     li.className = "channel-item" + (enabled ? "" : " disabled");
-    li.innerHTML = `<div class="meta"><span class="name">${escapeHtml(p.name)}</span><span class="id">${escapeHtml(p.playlistId)}${p.videoCount != null ? " · " + p.videoCount + " videos" : ""}</span></div>`;
+    li.appendChild(
+      h("div", { class: "meta" },
+        h("span", { class: "name" }, String(p.name ?? "")),
+        h("span", { class: "id" }, String(p.playlistId ?? "") + (p.videoCount != null ? " · " + p.videoCount + " videos" : "")))
+    );
     const actions = document.createElement("div");
     actions.className = "item-actions";
     actions.appendChild(
